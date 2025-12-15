@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PersoDict — Offline Student Dictionary</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">Pd</span>
+    <div class="brand-text">
+      <strong>PersoDict</strong>
+      <span class="brand-sub">Offline student dictionary</span>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tab active" data-view="search">Search</button>
+    <button class="tab" data-view="history">History</button>
+    <button class="tab" data-view="dictionaries">Dictionaries</button>
+  </nav>
+  <button id="themeBtn" class="icon-btn" title="Toggle theme">🌙</button>
+</header>
+
+<main>
+  <!-- ============================ SEARCH ============================ -->
+  <section id="view-search" class="view active">
+    <div class="search-wrap">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input id="searchInput" type="text" autocomplete="off" spellcheck="false"
+               placeholder="Type a word or phrase… (Persian or English)">
+        <button id="clearInput" class="icon-btn hidden" title="Clear">✕</button>
+      </div>
+      <div id="suggestBox" class="suggest hidden"></div>
+      <div id="onboard" class="onboard hidden"></div>
+    </div>
+
+    <div id="results" class="results hidden"></div>
+    <div id="emptyState" class="empty hidden"></div>
+  </section>
+
+  <!-- ============================ HISTORY ============================ -->
+  <section id="view-history" class="view">
+    <div class="panel-head">
+      <h2>Search history</h2>
+      <div class="panel-actions">
+        <div class="seg">
+          <button id="histRecent" class="seg-btn active">Recent</button>
+          <button id="histTop" class="seg-btn">Most searched</button>
+        </div>
+        <button id="clearHistory" class="btn danger outlined">Clear history</button>
+      </div>
+    </div>
+    <div id="historyList" class="history-list"></div>
+    <div id="historyEmpty" class="empty hidden">
+      <p>No searches recorded yet.</p>
+      <p class="muted">Every word you look up is saved here so you can review it easily.</p>
+    </div>
+  </section>
+
+  <!-- ============================ DICTIONARIES ====================== -->
+  <section id="view-dictionaries" class="view">
+    <div class="panel-head">
+      <h2>Dictionaries</h2>
+      <p class="muted panel-note">
+        Each dictionary is downloaded once, then all lookups work fully offline —
+        no per-word internet requests.
+      </p>
+    </div>
+    <div id="sourcesList" class="sources-list"></div>
+  </section>
+</main>
+
+<footer class="statusbar">
+  <span id="statusText">Loading…</span>
+</footer>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
