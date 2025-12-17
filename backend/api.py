@@ -21,24 +21,35 @@ class Api:
 
     # ------------------------------------------------------------- search
 
+    def _enabled_ids(self):
+        """Source ids that are both installed and enabled (for searching)."""
+        out = []
+        for s in SOURCES:
+            if self.db.get_meta(f"installed:{s.id}") == "1" and self.db.get_meta(
+                f"enabled:{s.id}", "1"
+            ) == "1":
+                out.append(s.id)
+        return out
+
     def search(self, query: str):
         q = (query or "").strip()
         db = self.db
-        exact = db.exact(q)
+        enabled = self._enabled_ids()
+        exact = db.exact(q, enabled=enabled)
         result = {
             "query": q,
             "exact": exact,
-            "reverse": db.reverse_hits(q),
+            "reverse": db.reverse_hits(q, enabled=enabled),
             "suggestions": [],
             "sources": [s.id for s in SOURCES if s.id in {r["source"] for r in exact}],
         }
         db.record(q)
         if not result["exact"]:
-            result["suggestions"] = db.suggestions(q)
+            result["suggestions"] = db.suggestions(q, enabled=enabled)
         return result
 
     def suggest(self, query: str):
-        return self.db.suggestions(query or "", limit=12)
+        return self.db.suggestions(query or "", enabled=self._enabled_ids(), limit=12)
 
     # ------------------------------------------------------------ sources
 
@@ -60,6 +71,8 @@ class Api:
                     "url": s.url,
                     "license": s.license,
                     "installed": installed,
+                    "enabled": installed
+                    and self.db.get_meta(f"enabled:{s.id}", "1") == "1",
                     "count": count,
                 }
             )
@@ -97,6 +110,7 @@ class Api:
                 self._set_dl(stage="error", msg="Received data was incomplete; try again")
                 return
             self.db.set_meta(f"installed:{source_id}", "1")
+            self.db.set_meta(f"enabled:{source_id}", "1")
             self.db.set_meta(f"count:{source_id}", str(n))
             self._set_dl(active=False, stage="done", pct=100, msg=f"{n:,} entries")
         except Exception as exc:  # noqa: BLE001
@@ -137,12 +151,19 @@ class Api:
     def remove(self, source_id: str):
         self.db.clear_source(source_id)
         self.db.set_meta(f"installed:{source_id}", "0")
+        self.db.set_meta(f"enabled:{source_id}", "0")
         raw = os.path.join(self.raw_dir, source_id)
         import shutil
 
         if os.path.isdir(raw):
             shutil.rmtree(raw, ignore_errors=True)
         return True
+
+    def set_enabled(self, source_id: str, enabled: bool):
+        if self.db.get_meta(f"installed:{source_id}") != "1":
+            return {"ok": False, "error": "dictionary not installed"}
+        self.db.set_meta(f"enabled:{source_id}", "1" if enabled else "0")
+        return {"ok": True}
 
     # ------------------------------------------------------------ history
 
