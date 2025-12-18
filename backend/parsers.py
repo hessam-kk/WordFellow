@@ -56,6 +56,12 @@ def _data_line_to_rows(line: str, pos_map):
     except ValueError:
         return []
     idx += 1 + p_cnt * 4
+    if ss_type == "v" and idx < len(parts):
+        try:
+            f_cnt = int(parts[idx])
+        except ValueError:
+            f_cnt = 0
+        idx += 1 + f_cnt * 3
     gloss = ""
     if idx < len(parts) and parts[idx] == "|":
         gloss = " ".join(parts[idx + 1:])
