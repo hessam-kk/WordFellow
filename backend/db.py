@@ -159,44 +159,57 @@ class DictDB:
     def _nrange(nw: str):
         return nw, nw + _MAX_RANGE
 
-    def exact(self, query: str, limit_per_source: int = 60, limit_total: int = 500):
+    @staticmethod
+    def _src_clause(enabled):
+        """Return (sql, params) restricting a query to the enabled sources.
+        enabled is a list of source ids; None/empty means 'all'."""
+        if not enabled:
+            return "", ()
+        ph = ",".join("?" * len(enabled))
+        return f" AND source IN ({ph})", tuple(enabled)
+
+    def exact(self, query: str, enabled=None, limit_total: int = 500):
         nw = normalize_word(query)
         if not nw:
             return []
+        sql, params = self._src_clause(enabled)
         rows = self._conn.execute(
             "SELECT source, word, pos, sense_no, definition, examples"
-            " FROM entries WHERE nword = ? ORDER BY source, rowid LIMIT ?",
-            (nw, limit_total),
+            f" FROM entries WHERE nword = ?{sql} ORDER BY source, rowid LIMIT ?",
+            (nw, *params, limit_total),
         ).fetchall()
         return [self._row(r) for r in rows]
 
-    def reverse_hits(self, query: str, limit: int = 15):
+    def reverse_hits(self, query: str, enabled=None, limit: int = 15):
         """Persian→English index: english words whose persian gloss matches."""
         nw = normalize_word(query)
         if not nw:
+            return []
+        if enabled and "enfa" not in enabled:
             return []
         rows = self._conn.execute(
             "SELECT DISTINCT word FROM rev WHERE nword = ? LIMIT ?", (nw, limit)
         ).fetchall()
         return [r[0] for r in rows]
 
-    def suggestions(self, query: str, limit: int = 24):
+    def suggestions(self, query: str, enabled=None, limit: int = 24):
         """Prefix matches across all installed sources (for autocomplete +
         'did you mean')."""
         nw = normalize_word(query)
         if not nw:
             return []
         lo, hi = self._nrange(nw)
+        sql, params = self._src_clause(enabled)
         rows = self._conn.execute(
-            "SELECT DISTINCT nword FROM entries WHERE nword >= ? AND nword < ?"
+            f"SELECT DISTINCT nword FROM entries WHERE nword >= ? AND nword < ?{sql}"
             " ORDER BY length(nword), nword LIMIT ?",
-            (lo, hi, limit),
+            (lo, hi, *params, limit),
         ).fetchall()
         out = []
         for (w,) in rows:
             if w != nw:
                 out.append(w)
-        if len(out) < limit:
+        if (not enabled or "enfa" in enabled) and len(out) < limit:
             rows = self._conn.execute(
                 "SELECT DISTINCT nword FROM rev WHERE nword >= ? AND nword < ?"
                 " ORDER BY length(nword), nword LIMIT ?",
