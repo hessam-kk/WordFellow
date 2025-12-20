@@ -1,4 +1,4 @@
-/* PersoDict frontend */
+/* WordFellow frontend */
 "use strict";
 
 const $ = (sel) => document.querySelector(sel);
@@ -641,7 +641,7 @@ async function boot() {
       els.onboard.innerHTML = `
         <div class="onboard-icon">${icon("sparkles", 19)}</div>
         <div class="onboard-body">
-          <b>Welcome to PersoDict!</b>
+          <b>Welcome to WordFellow!</b>
           <p>${installedIds.length === 0
             ? "No dictionaries are installed yet. Download one to get started (only once — afterwards all searches work fully offline)."
             : "All installed dictionaries are disabled. Enable one from the Dictionaries tab to start searching."}</p>
