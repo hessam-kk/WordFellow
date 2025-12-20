@@ -7,7 +7,7 @@ import urllib.request
 
 CHUNK = 256 * 1024
 RETRIES = 5
-USER_AGENT = "Mozilla/5.0 (PersoDict/1.0)"
+USER_AGENT = "Mozilla/5.0 (WordFellow/1.0)"
 
 
 def _open(url: str):
