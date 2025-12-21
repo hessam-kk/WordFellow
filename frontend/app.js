@@ -62,6 +62,8 @@ const ICONS = {
   book: '<path d="M2 3.5h6a4 4 0 0 1 4 4V21a3 3 0 0 0-3-3H2z"/><path d="M22 3.5h-6a4 4 0 0 0-4 4V21a3 3 0 0 1 3-3h7z"/>',
   lang: '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
   library: '<path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>',
+  pencil: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
 };
 const icon = (name, size = 16) => svg(ICONS[name] || "", size);
 
@@ -207,6 +209,7 @@ async function doSearch(query, { fromHistory = false } = {}) {
           ${hasPos ? `<span class="pos-chip">${esc(senses[0].pos)}</span>` : ""}
         </div>
         <div class="senses">${sensesHtml}</div>
+        <div class="word-notes" data-word="${esc(word)}"></div>
       </div>`;
     }
     html.push(`<div class="card" style="--src:${meta.color};--src2:${meta.color2}">
@@ -267,8 +270,90 @@ async function doSearch(query, { fromHistory = false } = {}) {
       els.searchInput.focus();
     })
   );
+  /* load user notes for all displayed words */
+  loadNotes();
   els.statusText.textContent = `“${q}” — ${fmt(exact.length)} results`;
   if (fromHistory) switchView("search");
+}
+
+/* --------------------------- user notes --------------------------- */
+
+async function loadNotes() {
+  const noteEls = els.results.querySelectorAll(".word-notes[data-word]");
+  if (!noteEls.length) return;
+  const words = [...new Set([...noteEls].map((el) => el.dataset.word))];
+  try {
+    const notes = await call("get_notes", words);
+    for (const el of noteEls) {
+      const word = el.dataset.word;
+      const note = notes[word] || "";
+      renderNote(el, word, note);
+    }
+  } catch (e) {
+    /* silently ignore — notes are optional */
+  }
+}
+
+function renderNote(container, word, note) {
+  if (note) {
+    container.innerHTML = `
+      <div class="note-display">
+        <div class="note-content" ${dirAttr(note)}>${esc(note)}</div>
+        <div class="note-actions">
+          <button class="note-act edit" title="Edit note">${icon("pencil", 14)}</button>
+          <button class="note-act del" title="Delete note">${icon("trash", 14)}</button>
+        </div>
+      </div>`;
+    container.querySelector(".note-act.edit").addEventListener("click", () => openEditor(container, word, note));
+    container.querySelector(".note-act.del").addEventListener("click", async () => {
+      try {
+        await call("delete_note", word);
+        renderNote(container, word, "");
+        toast("Note deleted");
+      } catch (e) {
+        toast("Error deleting note");
+      }
+    });
+  } else {
+    container.innerHTML = `<button class="note-add-btn">${icon("pencil", 13)} Add note</button>`;
+    container.querySelector(".note-add-btn").addEventListener("click", () => openEditor(container, word, ""));
+  }
+}
+
+function openEditor(container, word, existing) {
+  container.innerHTML = `
+    <div class="note-editor">
+      <textarea placeholder="Write your note or meaning for this word…">${esc(existing)}</textarea>
+      <div class="note-btns">
+        <button class="btn cancel-note">Cancel</button>
+        <button class="btn primary save-note">Save</button>
+      </div>
+    </div>`;
+  const ta = container.querySelector("textarea");
+  ta.focus();
+  if (existing) ta.setSelectionRange(ta.value.length, ta.value.length);
+  container.querySelector(".cancel-note").addEventListener("click", () => renderNote(container, word, existing));
+  container.querySelector(".save-note").addEventListener("click", async () => {
+    const text = ta.value.trim();
+    if (!text) {
+      renderNote(container, word, "");
+      return;
+    }
+    try {
+      await call("save_note", word, text);
+      renderNote(container, word, text);
+      toast("Note saved");
+    } catch (e) {
+      toast("Error saving note");
+    }
+  });
+  /* save on Ctrl+Enter */
+  ta.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      container.querySelector(".save-note").click();
+    }
+  });
 }
 
 function showEmptyState(q) {
