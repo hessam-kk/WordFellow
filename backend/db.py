@@ -43,6 +43,12 @@ CREATE TABLE IF NOT EXISTS history(
 );
 CREATE INDEX IF NOT EXISTS idx_history_last ON history(last_seen DESC);
 CREATE INDEX IF NOT EXISTS idx_history_count ON history(count DESC);
+
+CREATE TABLE IF NOT EXISTS user_notes(
+  word TEXT PRIMARY KEY,
+  note TEXT NOT NULL DEFAULT '',
+  updated REAL NOT NULL
+);
 """
 
 REV_SOURCE = "fatoen"  # reverse Persian→English index shown under enfa source
@@ -289,6 +295,37 @@ class DictDB:
 
     def clear_history(self):
         self._conn.execute("DELETE FROM history")
+        self._conn.commit()
+
+    # ------------------------------------------------------------- user notes
+
+    def save_note(self, word: str, note: str):
+        now = time.time()
+        self._conn.execute(
+            "INSERT OR REPLACE INTO user_notes (word, note, updated) VALUES (?,?,?)",
+            (word, note, now),
+        )
+        self._conn.commit()
+
+    def get_note(self, word: str) -> str:
+        row = self._conn.execute(
+            "SELECT note FROM user_notes WHERE word = ?", (word,)
+        ).fetchone()
+        return row[0] if row else ""
+
+    def get_notes_bulk(self, words: list[str]) -> dict[str, str]:
+        if not words:
+            return {}
+        rows = self._conn.execute(
+            "SELECT word, note FROM user_notes WHERE word IN ({})".format(
+                ",".join("?" * len(words))
+            ),
+            words,
+        ).fetchall()
+        return {r[0]: r[1] for r in rows}
+
+    def delete_note(self, word: str):
+        self._conn.execute("DELETE FROM user_notes WHERE word = ?", (word,))
         self._conn.commit()
 
     def close(self):
