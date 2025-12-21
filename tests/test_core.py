@@ -1,4 +1,4 @@
-"""Unit tests for PersoDict (no network required).
+"""Unit tests for WordFellow (no network required).
 
 Run:  python -m unittest discover -s tests
 """
