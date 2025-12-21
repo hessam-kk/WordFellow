@@ -178,5 +178,18 @@ class Api:
         self.db.clear_history()
         return True
 
+    # ----------------------------------------------------------- user notes
+
+    def save_note(self, word: str, note: str):
+        self.db.save_note(word.strip(), note)
+        return True
+
+    def get_notes(self, words: list[str]):
+        return self.db.get_notes_bulk(words)
+
+    def delete_note(self, word: str):
+        self.db.delete_note(word.strip())
+        return True
+
     def close(self):
         self.db.close()
