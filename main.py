@@ -1,4 +1,4 @@
-"""PersoDict — offline Persian/English dictionary for students.
+"""WordFellow — offline Persian/English dictionary for students.
 
 Run:  python main.py
 """
@@ -20,7 +20,7 @@ FRONTEND = os.path.join(BASE_DIR, "frontend", "index.html")
 def main():
     api = Api(DATA_DIR)
     window = webview.create_window(
-        "PersoDict — Offline Student Dictionary",
+        "WordFellow — Offline Student Dictionary",
         FRONTEND,
         js_api=api,
         width=1160,
