@@ -1,4 +1,4 @@
-# PersoDict — Personalized Offline Dictionary for Students
+# WordFellow — Personalized Offline Dictionary for Students
 
 A personalized dictionary for students built with **Python + pywebview**.
 Search any word and get:
