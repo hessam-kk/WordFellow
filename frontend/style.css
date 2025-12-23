@@ -440,6 +440,76 @@ main { flex: 1; overflow-y: auto; position: relative; z-index: 1; }
   border-left: 2.5px solid color-mix(in srgb, var(--src) 35%, transparent);
 }
 
+/* ---------------------------- user notes ---------------------------- */
+.word-notes {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+.note-add-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px dashed var(--border-strong); background: transparent;
+  color: var(--ink-3); font: inherit; font-size: 12.5px; font-weight: 500;
+  cursor: pointer; padding: 5px 12px; border-radius: 8px;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.note-add-btn:hover {
+  color: var(--accent); border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.note-add-btn svg { flex: 0 0 auto; }
+
+.note-display {
+  display: flex; gap: 10px; align-items: flex-start;
+  animation: rise .3s cubic-bezier(.22, 1, .36, 1) both;
+}
+.note-content {
+  flex: 1; min-width: 0;
+  font-size: 13.5px; line-height: 1.85; color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--accent) 15%, transparent);
+  border-radius: 10px;
+  padding: 10px 14px;
+  white-space: pre-wrap; word-break: break-word;
+}
+.note-actions {
+  display: flex; gap: 4px; flex: 0 0 auto;
+}
+.note-act {
+  border: 0; background: transparent; color: var(--ink-3);
+  cursor: pointer; padding: 5px; border-radius: 7px;
+  display: grid; place-items: center;
+  transition: color .15s, background .15s;
+}
+.note-act:hover { color: var(--ink); background: var(--surface-3); }
+.note-act.del:hover { color: var(--danger); background: var(--danger-soft); }
+
+.note-editor {
+  animation: rise .25s cubic-bezier(.22, 1, .36, 1) both;
+}
+.note-editor textarea {
+  width: 100%; min-height: 72px; max-height: 200px;
+  font: inherit; font-size: 13.5px; line-height: 1.75;
+  color: var(--ink); background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 14px;
+  resize: vertical;
+  box-shadow: 0 0 0 4px var(--ring);
+}
+.note-editor textarea:focus { outline: 0; }
+.note-editor textarea::placeholder { color: var(--ink-3); }
+.note-btns {
+  display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end;
+}
+.note-btns .btn {
+  padding: 6px 14px; font-size: 12.5px; border-radius: 9px;
+}
+.note-btns .btn.primary {
+  padding: 6px 16px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, .32);
+}
+
 /* chips (translations / did-you-mean) */
 .word-row .did-mean { margin-bottom: 4px; font-size: 13px; color: var(--ink-2); }
 .chips { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 10px; }
