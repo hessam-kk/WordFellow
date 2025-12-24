@@ -49,6 +49,14 @@ CREATE TABLE IF NOT EXISTS user_notes(
   note TEXT NOT NULL DEFAULT '',
   updated REAL NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS study1212(
+  word TEXT PRIMARY KEY,
+  box INTEGER NOT NULL DEFAULT 0,
+  seen INTEGER NOT NULL DEFAULT 0,
+  correct INTEGER NOT NULL DEFAULT 0,
+  last_seen REAL NOT NULL DEFAULT 0
+);
 """
 
 REV_SOURCE = "fatoen"  # reverse Persian→English index shown under enfa source
@@ -326,6 +334,43 @@ class DictDB:
 
     def delete_note(self, word: str):
         self._conn.execute("DELETE FROM user_notes WHERE word = ?", (word,))
+        self._conn.commit()
+
+    # ------------------------------------------------------ 1212 study progress
+
+    def study_all(self) -> dict:
+        rows = self._conn.execute(
+            "SELECT word, box, seen, correct FROM study1212"
+        ).fetchall()
+        return {r[0]: {"box": r[1], "seen": r[2], "correct": r[3]} for r in rows}
+
+    def study_rate(self, word: str, correct: bool) -> int:
+        """Leitner boxes: 0 new, 1 learning, 2 review, 3 mastered.
+        Correct answers advance one box; a miss sends the word back to 0."""
+        now = time.time()
+        row = self._conn.execute(
+            "SELECT box FROM study1212 WHERE word = ?", (word,)
+        ).fetchone()
+        box = (0 if row is None else row[0])
+        box = min(3, box + 1) if correct else 0
+        self._conn.execute(
+            "INSERT INTO study1212 (word, box, seen, correct, last_seen) VALUES (?,?,1,?,?)"
+            " ON CONFLICT(word) DO UPDATE SET box = ?, seen = seen + 1,"
+            " correct = correct + ?, last_seen = ?",
+            (word, box, 1 if correct else 0, now, box, 1 if correct else 0, now),
+        )
+        self._conn.commit()
+        return box
+
+    def study_reset(self, words: list[str]):
+        if not words:
+            return
+        self._conn.execute(
+            "DELETE FROM study1212 WHERE word IN ({})".format(
+                ",".join("?" * len(words))
+            ),
+            words,
+        )
         self._conn.commit()
 
     def close(self):
