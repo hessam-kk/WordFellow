@@ -1,0 +1,71 @@
+adjacency: nearing
+adjacent: nearby: neighboring
+agile: astute: clever: moving and acting quickly: quick and active
+bustling: lively
+arrangement: configuration
+array: range
+barrier: impediment: obstacle
+avenue: method
+brittle: breakable: fragile
+cardinal: fundamental
+catastrophic: badly harmful
+central: essential
+compact: concise compressed
+complex: system n. : elaborate adj.
+complicated: complex: made things more difficult
+component: constituent
+composition: mixture
+configuration: arrangement: form
+confine: limit > confined to: limited to: restricted
+contiguous: neighboring
+contour: outline
+covered: included
+crest: peak
+devoid of: short of: lack of: scant of: without
+dimension: aspect: size
+disguise: hidden
+emanate: emerge
+embark on: start
+elevate: raise
+equilibrium: balance
+erect: build
+focal point: central area
+focus: concentrate
+freestanding: separate
+gap: opening
+hold: support: keep up
+hub: center
+host of: great number
+idiosyncrasies: peculiarity
+imprecise: inexact
+inaccessible: unreachable
+key: significant: critical
+locate: find
+narrow: limit
+orientation: perspective: introduction
+overview: summary
+patch: area: spot
+peak: top: highest point: maximum: time of the greatest activity: summit/climax
+permeate: penetrate
+pinnacle: high point
+pore: space: hole
+property: characteristic: quality
+replicas: copies n.
+route: path n.> routinely: commonly
+rudiment: basic> rudimentary: primitive: basic
+screen: filter v.
+secrete: produce
+severed: cut off
+shallow: not deep
+sheer: absolute
+shield: protect
+sort: kind: type
+staple: important
+steady: stable
+sunk: down to the bottom
+tie: connection: relation
+unadorned: not decorative
+visual barrier: obstacle to view
+vital: critical: essential
+vivid: bright
+volume: quantity
