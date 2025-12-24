@@ -4,6 +4,7 @@ import os
 import threading
 
 from . import downloader
+from . import study1212
 from .db import DictDB
 from .parsers import parse_source
 from .sources import RAW_FILES, SOURCES, URLS, get_source
@@ -189,6 +190,79 @@ class Api:
 
     def delete_note(self, word: str):
         self.db.delete_note(word.strip())
+        return True
+
+    # ------------------------------------------------------------- 1212 study
+
+    def study_categories(self):
+        """The 15 topic categories with per-word progress breakdowns."""
+        prog = self.db.study_all()
+        out = []
+        for c in study1212.categories():
+            new = learning = mastered = 0
+            for w in c["words"]:
+                box = prog.get(w["word"], {}).get("box", 0)
+                if box >= 3:
+                    mastered += 1
+                elif box >= 1:
+                    learning += 1
+                else:
+                    new += 1
+            out.append(
+                {
+                    "id": c["id"],
+                    "name": c["name"],
+                    "total": c["total"],
+                    "new": new,
+                    "learning": learning,
+                    "mastered": mastered,
+                }
+            )
+        return out
+
+    def study_words(self, cat_id: str):
+        """Words of one category. Definitions come from the installed
+        dictionaries (WordNet EN + English-Persian FA); the word-list
+        gloss is kept as a fallback for words the dictionaries miss."""
+        cat = study1212.get_category(cat_id)
+        if not cat:
+            return []
+        prog = self.db.study_all()
+        enabled = self._enabled_ids()
+        out = []
+        for w in cat["words"]:
+            word = w["word"]
+            p = prog.get(word, {"box": 0, "seen": 0, "correct": 0})
+            def_en = def_fa = pos = ""
+            for h in self.db.exact(word, enabled=enabled, limit_total=6):
+                if h["source"] == "wn" and not def_en:
+                    def_en, pos = h["definition"], h["pos"]
+                elif h["source"] == "enfa" and not def_fa:
+                    def_fa = h["definition"]
+                if def_en and def_fa:
+                    break
+            out.append(
+                {
+                    "word": word,
+                    "gloss": w["gloss"],
+                    "def_en": def_en,
+                    "def_fa": def_fa,
+                    "pos": pos,
+                    "box": p["box"],
+                    "seen": p["seen"],
+                    "correct": p["correct"],
+                }
+            )
+        return out
+
+    def study_rate(self, word: str, correct: bool):
+        box = self.db.study_rate(word.strip(), bool(correct))
+        return {"ok": True, "box": box}
+
+    def study_reset(self, cat_id: str):
+        cat = study1212.get_category(cat_id)
+        if cat:
+            self.db.study_reset([w["word"] for w in cat["words"]])
         return True
 
     def close(self):
