@@ -13,6 +13,7 @@ const els = {
   historyList: $("#historyList"),
   historyEmpty: $("#historyEmpty"),
   sourcesList: $("#sourcesList"),
+  studyBody: $("#studyBody"),
   statusText: $("#statusText"),
   toast: $("#toast"),
   themeBtn: $("#themeBtn"),
@@ -126,6 +127,7 @@ function switchView(name) {
   els.tabs.forEach((t) => t.classList.toggle("active", t.dataset.view === name));
   if (name === "history") renderHistory();
   if (name === "dictionaries") renderSources();
+  if (name === "study") renderStudyHome();
 }
 
 /* ------------------------------- theme ------------------------------ */
@@ -682,6 +684,329 @@ function stopPolling() {
   clearInterval(state.dlTimer);
   state.dlTimer = null;
 }
+
+/* ---------------------------- 1212 study ---------------------------- */
+
+const study = {
+  catId: null,
+  catName: "",
+  words: [],
+  queue: [],
+  idx: 0,
+  flipped: false,
+  correct: 0,
+  mode: "home", // home | cards | browse | end
+};
+
+const BOX_LABEL = ["New", "Learning", "Review", "Mastered"];
+
+const shuffleArr = (a) => {
+  const out = a.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+};
+
+function studySegBar(c) {
+  const pct = (n) => (c.total ? (n / c.total) * 100 : 0);
+  return `<div class="study-bar" title="${c.mastered} mastered · ${c.learning} learning · ${c.new} new">
+    <span class="sb mastered" style="width:${pct(c.mastered)}%"></span>
+    <span class="sb learning" style="width:${pct(c.learning)}%"></span>
+  </div>`;
+}
+
+async function renderStudyHome() {
+  study.mode = "home";
+  let cats;
+  try {
+    cats = await call("study_categories");
+  } catch (e) {
+    els.studyBody.innerHTML = `
+      <div class="empty">
+        <div class="empty-art">${icon("alert", 46)}</div>
+        <p class="empty-title">Could not load the word list</p>
+        <p class="muted">${esc(e.message)}</p>
+      </div>`;
+    return;
+  }
+  if (!cats || !cats.length) {
+    els.studyBody.innerHTML = `
+      <div class="empty">
+        <div class="empty-art">${icon("book", 46)}</div>
+        <p class="empty-title">No word list found</p>
+        <p class="muted">Place the 1212_Category folder next to the app files.</p>
+      </div>`;
+    return;
+  }
+  const total = cats.reduce((s, c) => s + c.total, 0);
+  const mastered = cats.reduce((s, c) => s + c.mastered, 0);
+  const learning = cats.reduce((s, c) => s + c.learning, 0);
+  const pct = total ? Math.round((mastered / total) * 100) : 0;
+
+  els.studyBody.innerHTML = `
+    <div class="panel-head">
+      <div>
+        <h2>1212 Words</h2>
+        <p class="panel-note muted">The essential TOEFL vocabulary, grouped into ${cats.length} topics.
+        Study with flashcards — words you miss come back until you master them.</p>
+      </div>
+      <div class="study-overall">
+        <div class="so-num"><b>${fmt(mastered)}</b> / ${fmt(total)} mastered</div>
+        <div class="study-bar big">
+          <span class="sb mastered" style="width:${pct}%"></span>
+          <span class="sb learning" style="width:${total ? (learning / total) * 100 : 0}%"></span>
+        </div>
+        <div class="so-sub">${pct}% complete · ${fmt(learning)} in progress</div>
+      </div>
+    </div>
+    <div class="study-grid">
+      ${cats
+        .map(
+          (c) => `
+        <div class="cat-card" data-act="open" data-cat="${esc(c.id)}">
+          <div class="cat-top">
+            <span class="cat-num">${esc(c.id)}</span>
+            <div class="cat-name">
+              <h3>${esc(c.name)}</h3>
+              <span>${fmt(c.total)} words</span>
+            </div>
+          </div>
+          ${studySegBar(c)}
+          <div class="cat-stats">
+            <span class="cs mastered">${fmt(c.mastered)} mastered</span>
+            <span class="cs learning">${fmt(c.learning)} learning</span>
+            <span class="cs new">${fmt(c.new)} new</span>
+          </div>
+          <div class="cat-btns">
+            <button class="btn primary sm" data-act="open" data-cat="${esc(c.id)}">Study</button>
+            <button class="btn sm" data-act="browse" data-cat="${esc(c.id)}">Browse</button>
+          </div>
+        </div>`
+        )
+        .join("")}
+    </div>`;
+}
+
+async function openCategory(catId, mode) {
+  study.catId = catId;
+  study.mode = mode;
+  els.studyBody.innerHTML = `<div class="empty"><p class="muted">Loading words…</p></div>`;
+  let words;
+  try {
+    words = await call("study_words", catId);
+  } catch (e) {
+    toast("Error loading words: " + e.message);
+    renderStudyHome();
+    return;
+  }
+  study.words = words;
+  const catsInfo = await call("study_categories").catch(() => []);
+  const info = (catsInfo || []).find((c) => c.id === catId);
+  study.catName = info ? info.name : "Category " + catId;
+  if (mode === "browse") renderStudyBrowse();
+  else startSession();
+}
+
+function startSession() {
+  study.mode = "cards";
+  study.flipped = false;
+  study.correct = 0;
+  study.idx = 0;
+  const pending = study.words
+    .filter((w) => w.box < 3)
+    .sort((a, b) => a.box - b.box);
+  let queue = shuffleArr(pending).sort((a, b) => a.box - b.box).slice(0, 15);
+  if (queue.length < 15) {
+    const masteredPool = shuffleArr(study.words.filter((w) => w.box >= 3));
+    queue = queue.concat(masteredPool.slice(0, 15 - queue.length));
+  }
+  study.queue = queue;
+  if (!queue.length) {
+    renderStudyBrowse();
+    toast("No words in this category");
+    return;
+  }
+  renderStudyCard();
+}
+
+function studyAnswerHtml(w) {
+  const parts = [];
+  if (w.def_en) {
+    parts.push(`<div class="flash-def"><span class="def-src">WordNet</span><div>${esc(w.def_en)}</div></div>`);
+  }
+  if (w.def_fa) {
+    parts.push(`<div class="flash-def fa" dir="rtl"><span class="def-src">English ↔ Persian</span><div>${esc(w.def_fa)}</div></div>`);
+  }
+  if (!w.def_en && !w.def_fa && w.gloss) {
+    parts.push(`<div class="flash-def"><span class="def-src">Word list</span><div>${esc(w.gloss)}</div></div>`);
+  }
+  if (!parts.length) {
+    parts.push(`<div class="flash-def"><div class="muted">No definition available — look it up from the Search tab and add a note.</div></div>`);
+  }
+  return parts.join("");
+}
+
+function renderStudyCard() {
+  const w = study.queue[study.idx];
+  const pos = w.pos && w.pos !== "None" ? `<span class="pos-chip">${esc(w.pos)}</span>` : "";
+  const body = study.flipped
+    ? studyAnswerHtml(w)
+    : `<p class="reveal-hint">${icon("search", 14)} Tap the card or press <kbd>Space</kbd> to reveal</p>`;
+  const rates = study.flipped
+    ? `<button class="rate again" data-act="again">${icon("x", 15)} Again<span class="k">1</span></button>
+       <button class="rate got" data-act="got">${icon("check", 15)} Got it<span class="k">2</span></button>`
+    : `<button class="rate reveal" data-act="flip">${icon("book", 15)} Reveal answer<span class="k">Space</span></button>`;
+  els.studyBody.innerHTML = `
+    <div class="study-top">
+      <button class="btn sm" data-act="home">${icon("arrowRight", 13)} All categories</button>
+      <div class="study-mid">
+        <b>${esc(study.catName)}</b>
+        <span>Card ${study.idx + 1} of ${study.queue.length}</span>
+      </div>
+      <span class="status-chip ${w.box >= 3 ? "mastered" : w.box >= 1 ? "learning" : "new"}">${BOX_LABEL[w.box]}</span>
+    </div>
+    <div class="study-progress"><span style="width:${((study.idx + 1) / study.queue.length) * 100}%"></span></div>
+    <div class="flash-card ${study.flipped ? "flipped" : ""}" data-act="flip">
+      <div class="flash-word-row">
+        <span class="flash-word">${esc(w.word)}</span>
+        ${pos}
+      </div>
+      ${body}
+    </div>
+    <div class="rate-btns">${rates}</div>`;
+}
+
+function flipStudyCard() {
+  if (study.mode !== "cards" || study.flipped) return;
+  study.flipped = true;
+  renderStudyCard();
+}
+
+async function rateStudyCard(correct) {
+  if (study.mode !== "cards" || !study.flipped) return;
+  const w = study.queue[study.idx];
+  if (correct) study.correct++;
+  try {
+    await call("study_rate", w.word, correct);
+  } catch (e) {
+    toast("Error saving progress");
+  }
+  w.box = correct ? Math.min(3, w.box + 1) : 0;
+  study.idx++;
+  study.flipped = false;
+  if (study.idx >= study.queue.length) renderStudyEnd();
+  else renderStudyCard();
+}
+
+function renderStudyEnd() {
+  study.mode = "end";
+  const studied = study.queue.length;
+  const acc = studied ? Math.round((study.correct / studied) * 100) : 0;
+  els.studyBody.innerHTML = `
+    <div class="study-end">
+      <div class="end-art">${icon("check", 34)}</div>
+      <h3>Session complete!</h3>
+      <p class="muted">${esc(study.catName)}</p>
+      <div class="end-stats">
+        <div class="end-stat"><b>${fmt(studied)}</b><span>cards studied</span></div>
+        <div class="end-stat"><b>${fmt(study.correct)}</b><span>correct</span></div>
+        <div class="end-stat"><b>${acc}%</b><span>accuracy</span></div>
+      </div>
+      <div class="end-btns">
+        <button class="btn primary" data-act="restart">Study more</button>
+        <button class="btn" data-act="browse" data-cat="${esc(study.catId)}">Browse words</button>
+        <button class="btn" data-act="home">All categories</button>
+      </div>
+    </div>`;
+}
+
+function renderStudyBrowse() {
+  study.mode = "browse";
+  const rows = study.words
+    .map((w) => {
+      const def = w.def_en || w.def_fa || w.gloss || "—";
+      const short = def.length > 110 ? def.slice(0, 110) + "…" : def;
+      const cls = w.box >= 3 ? "mastered" : w.box >= 1 ? "learning" : "new";
+      return `
+      <div class="brow-row" data-act="word" data-word="${esc(w.word)}" title="Search this word in the dictionary">
+        <span class="status-chip ${cls}">${BOX_LABEL[w.box]}</span>
+        <div class="brow-main">
+          <b class="brow-word" dir="ltr">${esc(w.word)}</b>
+          <span class="brow-def" ${dirAttr(short)}>${esc(short)}</span>
+        </div>
+        ${icon("arrowRight", 14)}
+      </div>`;
+    })
+    .join("");
+  els.studyBody.innerHTML = `
+    <div class="study-top">
+      <button class="btn sm" data-act="home">${icon("arrowRight", 13)} All categories</button>
+      <div class="study-mid">
+        <b>${esc(study.catName)}</b>
+        <span>${fmt(study.words.length)} words · click any word to look it up</span>
+      </div>
+      <div class="study-top-btns">
+        <button class="btn primary sm" data-act="open" data-cat="${esc(study.catId)}">Flashcards</button>
+        <button class="btn danger outlined sm" data-act="reset">Reset progress</button>
+      </div>
+    </div>
+    <div class="browse-list">${rows}</div>`;
+}
+
+async function resetStudyCategory(btn) {
+  if (btn.dataset.armed) {
+    try {
+      await call("study_reset", study.catId);
+    } catch (e) {
+      toast("Error resetting");
+      return;
+    }
+    toast("Progress reset");
+    openCategory(study.catId, "browse");
+    return;
+  }
+  btn.dataset.armed = "1";
+  const original = btn.innerHTML;
+  btn.innerHTML = "Click again to confirm";
+  setTimeout(() => {
+    delete btn.dataset.armed;
+    if (btn.isConnected) btn.innerHTML = original;
+  }, 2500);
+}
+
+els.studyBody.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-act]");
+  if (!t) return;
+  const act = t.dataset.act;
+  if (act === "open") openCategory(t.dataset.cat, "cards");
+  else if (act === "browse") openCategory(t.dataset.cat, "browse");
+  else if (act === "flip") flipStudyCard();
+  else if (act === "again") rateStudyCard(false);
+  else if (act === "got") rateStudyCard(true);
+  else if (act === "home") renderStudyHome();
+  else if (act === "restart") openCategory(study.catId, "cards");
+  else if (act === "reset") resetStudyCategory(t);
+  else if (act === "word") {
+    els.searchInput.value = t.dataset.word;
+    switchView("search");
+    doSearch(t.dataset.word);
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (state.view !== "study" || study.mode !== "cards") return;
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.key === " ") {
+    e.preventDefault();
+    flipStudyCard();
+  } else if (e.key === "1") {
+    rateStudyCard(false);
+  } else if (e.key === "2") {
+    rateStudyCard(true);
+  }
+});
 
 /* ------------------------------- boot ------------------------------- */
 
