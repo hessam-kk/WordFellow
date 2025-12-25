@@ -221,9 +221,9 @@ class Api:
         return out
 
     def study_words(self, cat_id: str):
-        """Words of one category. Definitions come from the installed
-        dictionaries (WordNet EN + English-Persian FA); the word-list
-        gloss is kept as a fallback for words the dictionaries miss."""
+        """Words of one category. Up to 5 definitions per word come from
+        the installed dictionaries (English-Persian and WordNet senses);
+        the word-list gloss is always included as an extra fallback."""
         cat = study1212.get_category(cat_id)
         if not cat:
             return []
@@ -233,20 +233,29 @@ class Api:
         for w in cat["words"]:
             word = w["word"]
             p = prog.get(word, {"box": 0, "seen": 0, "correct": 0})
-            def_en = def_fa = pos = ""
-            for h in self.db.exact(word, enabled=enabled, limit_total=6):
-                if h["source"] == "wn" and not def_en:
-                    def_en, pos = h["definition"], h["pos"]
-                elif h["source"] == "enfa" and not def_fa:
-                    def_fa = h["definition"]
-                if def_en and def_fa:
+            hits = self.db.exact(word, enabled=enabled, limit_total=30)
+            wn = [h for h in hits if h["source"] == "wn" and h["definition"]]
+            enfa = [h for h in hits if h["source"] == "enfa" and h["definition"]]
+            ordered = []
+            if enfa:
+                ordered.append(enfa[0])
+            if wn:
+                ordered.append(wn[0])
+            ordered.extend(enfa[1:])
+            ordered.extend(wn[1:])
+            defs = [
+                {"src": h["source"], "text": h["definition"]} for h in ordered[:5]
+            ]
+            pos = ""
+            for h in enfa + wn:
+                if h["pos"] and h["pos"] != "None":
+                    pos = h["pos"]
                     break
             out.append(
                 {
                     "word": word,
                     "gloss": w["gloss"],
-                    "def_en": def_en,
-                    "def_fa": def_fa,
+                    "defs": defs,
                     "pos": pos,
                     "box": p["box"],
                     "seen": p["seen"],
