@@ -59,6 +59,7 @@ const ICONS = {
   sparkles: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3z"/>',
   arrows: '<path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>',
   arrowRight: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  arrowLeft: '<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>',
   alert: '<path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
   book: '<path d="M2 3.5h6a4 4 0 0 1 4 4V21a3 3 0 0 0-3-3H2z"/><path d="M22 3.5h-6a4 4 0 0 0-4 4V21a3 3 0 0 1 3-3h7z"/>',
   lang: '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
@@ -833,13 +834,12 @@ function startSession() {
 
 function studyAnswerHtml(w) {
   const parts = [];
-  if (w.def_en) {
-    parts.push(`<div class="flash-def"><span class="def-src">WordNet</span><div>${esc(w.def_en)}</div></div>`);
-  }
-  if (w.def_fa) {
-    parts.push(`<div class="flash-def fa" dir="rtl"><span class="def-src">English ↔ Persian</span><div>${esc(w.def_fa)}</div></div>`);
-  }
-  if (!w.def_en && !w.def_fa && w.gloss) {
+  (w.defs || []).forEach((d) => {
+    const label = d.src === "wn" ? "WordNet" : "English ↔ Persian";
+    const cls = d.src === "enfa" ? ' class="flash-def fa" dir="rtl"' : ' class="flash-def"';
+    parts.push(`<div ${cls}><span class="def-src">${label}</span><div>${esc(d.text)}</div></div>`);
+  });
+  if (w.gloss) {
     parts.push(`<div class="flash-def"><span class="def-src">Word list</span><div>${esc(w.gloss)}</div></div>`);
   }
   if (!parts.length) {
@@ -860,7 +860,7 @@ function renderStudyCard() {
     : `<button class="rate reveal" data-act="flip">${icon("book", 15)} Reveal answer<span class="k">Space</span></button>`;
   els.studyBody.innerHTML = `
     <div class="study-top">
-      <button class="btn sm" data-act="home">${icon("arrowRight", 13)} All categories</button>
+      <button class="btn sm" data-act="home">${icon("arrowLeft", 13)} All categories</button>
       <div class="study-mid">
         <b>${esc(study.catName)}</b>
         <span>Card ${study.idx + 1} of ${study.queue.length}</span>
@@ -926,7 +926,7 @@ function renderStudyBrowse() {
   study.mode = "browse";
   const rows = study.words
     .map((w) => {
-      const def = w.def_en || w.def_fa || w.gloss || "—";
+      const def = (w.defs && w.defs.length ? w.defs.map((d) => d.text).join(" · ") : "") || w.gloss || "—";
       const short = def.length > 110 ? def.slice(0, 110) + "…" : def;
       const cls = w.box >= 3 ? "mastered" : w.box >= 1 ? "learning" : "new";
       return `
@@ -942,7 +942,7 @@ function renderStudyBrowse() {
     .join("");
   els.studyBody.innerHTML = `
     <div class="study-top">
-      <button class="btn sm" data-act="home">${icon("arrowRight", 13)} All categories</button>
+      <button class="btn sm" data-act="home">${icon("arrowLeft", 13)} All categories</button>
       <div class="study-mid">
         <b>${esc(study.catName)}</b>
         <span>${fmt(study.words.length)} words · click any word to look it up</span>
