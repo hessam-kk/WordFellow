@@ -607,6 +607,7 @@ main { flex: 1; overflow-y: auto; position: relative; z-index: 1; }
 .flash-card.flipped {
   cursor: default; text-align: left; user-select: text;
   border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  max-height: 58vh; overflow-y: auto;
 }
 .flash-word-row {
   display: flex; align-items: center; justify-content: center;
