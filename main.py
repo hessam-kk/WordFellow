@@ -26,6 +26,7 @@ def main():
         width=1160,
         height=780,
         min_size=(900, 620),
+        maximized=True,
     )
     window.events.closing += lambda: api.close()
     # http_server serves the local page so the pywebview JS bridge is injected
