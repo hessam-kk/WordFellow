@@ -834,14 +834,14 @@ function startSession() {
 
 function studyAnswerHtml(w) {
   const parts = [];
+  if (w.gloss) {
+    parts.push(`<div class="flash-def"><span class="def-src">Word list</span><div>${esc(w.gloss)}</div></div>`);
+  }
   (w.defs || []).forEach((d) => {
     const label = d.src === "wn" ? "WordNet" : "English ↔ Persian";
     const cls = d.src === "enfa" ? ' class="flash-def fa" dir="rtl"' : ' class="flash-def"';
     parts.push(`<div ${cls}><span class="def-src">${label}</span><div>${esc(d.text)}</div></div>`);
   });
-  if (w.gloss) {
-    parts.push(`<div class="flash-def"><span class="def-src">Word list</span><div>${esc(w.gloss)}</div></div>`);
-  }
   if (!parts.length) {
     parts.push(`<div class="flash-def"><div class="muted">No definition available — look it up from the Search tab and add a note.</div></div>`);
   }
