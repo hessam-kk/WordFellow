@@ -128,7 +128,7 @@ function switchView(name) {
   els.tabs.forEach((t) => t.classList.toggle("active", t.dataset.view === name));
   if (name === "history") renderHistory();
   if (name === "dictionaries") renderSources();
-  if (name === "study") renderStudyHome();
+  if (name === "study") renderStudy();
 }
 
 /* ------------------------------- theme ------------------------------ */
@@ -701,6 +701,15 @@ const study = {
 
 const BOX_LABEL = ["New", "Learning", "Review", "Mastered"];
 
+/* Re-render whatever study sub-view was active — tab switches must not
+   reset an in-progress session. */
+function renderStudy() {
+  if (study.mode === "cards" && study.idx < study.queue.length) renderStudyCard();
+  else if (study.mode === "browse") renderStudyBrowse();
+  else if (study.mode === "end") renderStudyEnd();
+  else renderStudyHome();
+}
+
 const shuffleArr = (a) => {
   const out = a.slice();
   for (let i = out.length - 1; i > 0; i--) {
@@ -858,6 +867,13 @@ function renderStudyCard() {
     ? `<button class="rate again" data-act="again">${icon("x", 15)} Again<span class="k">1</span></button>
        <button class="rate got" data-act="got">${icon("check", 15)} Got it<span class="k">2</span></button>`
     : `<button class="rate reveal" data-act="flip">${icon("book", 15)} Reveal answer<span class="k">Space</span></button>`;
+  const dictBtn = study.flipped
+    ? `<div class="dict-row">
+        <button class="dict-link" data-act="word" data-word="${esc(w.word)}" title="Open this word in the Search tab">
+          ${icon("search", 13)} Look up in dictionary
+        </button>
+      </div>`
+    : "";
   els.studyBody.innerHTML = `
     <div class="study-top">
       <button class="btn sm" data-act="home">${icon("arrowLeft", 13)} All categories</button>
@@ -875,7 +891,8 @@ function renderStudyCard() {
       </div>
       ${body}
     </div>
-    <div class="rate-btns">${rates}</div>`;
+    <div class="rate-btns">${rates}</div>
+    ${dictBtn}`;
 }
 
 function flipStudyCard() {
