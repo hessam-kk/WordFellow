@@ -669,6 +669,16 @@ main { flex: 1; overflow-y: auto; position: relative; z-index: 1; }
 }
 .rate.got:hover { background: var(--ok-soft); }
 
+.dict-row { display: flex; justify-content: center; margin-top: 12px; }
+.dict-link {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 12.5px; font-weight: 500; color: var(--ink-3);
+  padding: 6px 12px; border-radius: 8px;
+  transition: color .15s, background .15s;
+}
+.dict-link:hover { color: var(--accent); background: var(--accent-soft); }
+
 /* session end */
 .study-end {
   max-width: 480px; margin: 40px auto 0; text-align: center;
