@@ -396,14 +396,20 @@ async function runSuggest() {
   }
   const fa = isFa(q);
   suggestIndex = -1;
+  const exactFirst = words.length && words[0].toLowerCase() === q.toLowerCase();
+  const head = exactFirst
+    ? ""
+    : `<div class="suggest-item exact hl" data-w="${esc(q)}">${icon("search", 14)}<span class="s-word">Search for <b ${dirAttr(q)}>${esc(q)}</b></span></div>`;
   els.suggestBox.innerHTML =
-    `<div class="suggest-item exact hl" data-w="${esc(q)}">${icon("search", 14)}<span class="s-word">Search for <b ${dirAttr(q)}>${esc(q)}</b></span></div>` +
+    head +
     words
-      .map(
-        (w) =>
-          `<div class="suggest-item" data-w="${esc(w)}"><span class="s-word" ${dirAttr(w)}>${esc(w)}</span>
-             <span class="hint">${fa ? "Persian" : "English"}</span></div>`
-      )
+      .map((w, i) => {
+        if (i === 0 && exactFirst) {
+          return `<div class="suggest-item exact hl" data-w="${esc(w)}">${icon("search", 14)}<span class="s-word"><b ${dirAttr(w)}>${esc(w)}</b></span><span class="hint">Exact match</span></div>`;
+        }
+        return `<div class="suggest-item" data-w="${esc(w)}"><span class="s-word" ${dirAttr(w)}>${esc(w)}</span>
+             <span class="hint">${fa ? "Persian" : "English"}</span></div>`;
+      })
       .join("");
   els.suggestBox.classList.remove("hidden");
 
