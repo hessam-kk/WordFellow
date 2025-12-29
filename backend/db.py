@@ -208,7 +208,8 @@ class DictDB:
 
     def suggestions(self, query: str, enabled=None, limit: int = 24):
         """Prefix matches across all installed sources (for autocomplete +
-        'did you mean')."""
+        'did you mean'). The exact word itself is included and, being the
+        shortest match, sorts first."""
         nw = normalize_word(query)
         if not nw:
             return []
@@ -219,9 +220,10 @@ class DictDB:
             " ORDER BY length(nword), nword LIMIT ?",
             (lo, hi, *params, limit),
         ).fetchall()
-        out = []
+        out, seen = [], set()
         for (w,) in rows:
-            if w != nw:
+            if w not in seen:
+                seen.add(w)
                 out.append(w)
         if (not enabled or "enfa" in enabled) and len(out) < limit:
             rows = self._conn.execute(
@@ -230,7 +232,8 @@ class DictDB:
                 (lo, hi, limit),
             ).fetchall()
             for (w,) in rows:
-                if w != nw:
+                if w not in seen:
+                    seen.add(w)
                     out.append(w)
         return out[:limit]
 
