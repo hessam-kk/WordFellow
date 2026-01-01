@@ -6,14 +6,24 @@ Run:  python main.py
 import os
 import sys
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if getattr(sys, "frozen", False):
+    # Frozen (PyInstaller): bundled assets live in the temp extraction dir;
+    # user data goes to the conventional per-user app-data folder so it
+    # survives updates and never gets wiped.
+    BASE_DIR = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(sys.executable)))
+    _app_root = os.path.join(
+        os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "WordFellow"
+    )
+    DATA_DIR = os.path.join(_app_root, "data")
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    DATA_DIR = os.path.join(BASE_DIR, "data")
 sys.path.insert(0, BASE_DIR)
 
 import webview  # noqa: E402
 
 from backend.api import Api  # noqa: E402
 
-DATA_DIR = os.path.join(BASE_DIR, "data")
 FRONTEND = os.path.join(BASE_DIR, "frontend", "index.html")
 
 
