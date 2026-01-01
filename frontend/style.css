@@ -1097,6 +1097,7 @@ main { flex: 1; overflow-y: auto; position: relative; z-index: 1; }
   display: inline-flex; align-items: center; gap: 9px;
   min-width: 0;
 }
+.status-links { display: inline-flex; align-items: center; gap: 4px; }
 #statusText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .channel-link {
   display: inline-flex; align-items: center; gap: 6px;
@@ -1110,6 +1111,18 @@ main { flex: 1; overflow-y: auto; position: relative; z-index: 1; }
   color: #1b7fc4;
   border-color: color-mix(in srgb, #229ed9 32%, transparent);
   background: color-mix(in srgb, #229ed9 9%, transparent);
+}
+.channel-link.gh svg { color: #24292f; }
+.channel-link.gh:hover {
+  color: #24292f;
+  border-color: color-mix(in srgb, #24292f 35%, transparent);
+  background: color-mix(in srgb, #24292f 8%, transparent);
+}
+[data-theme="dark"] .channel-link.gh svg { color: #e6edf3; }
+[data-theme="dark"] .channel-link.gh:hover {
+  color: #e6edf3;
+  border-color: color-mix(in srgb, #e6edf3 35%, transparent);
+  background: color-mix(in srgb, #e6edf3 10%, transparent);
 }
 .status-dot {
   width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto;
