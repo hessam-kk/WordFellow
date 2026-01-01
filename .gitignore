@@ -1,7 +1,32 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
+
+# App data (dictionaries, history, notes, study progress)
 data/
 *.db
 *.db-wal
 *.db-shm
+
+# PyInstaller packaging
+build/
+dist/
+*.spec
+
+# ZCode session files
+.zcode/
+
+# Test evidence screenshots
+gui-test-screenshots/
+
+# Editors & OS junk
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
