@@ -173,6 +173,22 @@ in). In a frozen build, all user data — downloaded dictionaries, history,
 notes, study progress — lives in `%LOCALAPPDATA%\WordFellow\data`, so it
 persists across runs and app updates no matter where the EXE is moved.
 
+### Releases via GitHub Actions
+
+Pushing a **tag** triggers [.github/workflows/release.yml](.github/workflows/release.yml),
+which builds the single-file EXE on a Windows runner and publishes a GitHub
+Release with the file attached automatically. The tag (minus a leading `v`)
+becomes the version and the file suffix:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+# → Release "v1.0.0" with asset WordFellow-1.0.0.exe
+```
+
+Manual runs (`workflow_dispatch`) only upload a build artifact named after
+the commit — they do not create a release.
+
 ---
 
 ## Tests
