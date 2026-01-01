@@ -163,14 +163,15 @@ Build with PyInstaller:
 
 ```bash
 pip install pyinstaller
-pyinstaller --noconfirm --windowed --icon=assets/icon.ico --name WordFellow ^
-  --add-data "frontend;frontend" --add-data "1212_Category;1212_Category" main.py
+pyinstaller --noconfirm --clean --onefile --windowed --icon=assets/icon.ico ^
+  --name WordFellow --add-data "frontend;frontend" ^
+  --add-data "1212_Category;1212_Category" main.py
 ```
 
-> Note: in a frozen build `data/` currently resolves to PyInstaller's temp
-> folder, so downloaded dictionaries and progress would not persist between
-> runs. Redirect `DATA_DIR` in `main.py` to a folder next to the executable
-> before shipping a real release.
+The result is a single portable `dist/WordFellow.exe` (the app icon is baked
+in). In a frozen build, all user data — downloaded dictionaries, history,
+notes, study progress — lives in `%LOCALAPPDATA%\WordFellow\data`, so it
+persists across runs and app updates no matter where the EXE is moved.
 
 ---
 
