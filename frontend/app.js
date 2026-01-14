@@ -66,6 +66,7 @@ const ICONS = {
   library: '<path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>',
   pencil: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  volume: '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>',
 };
 const icon = (name, size = 16) => svg(ICONS[name] || "", size);
 
@@ -90,6 +91,7 @@ let state = {
   installed: {}, // id -> bool
   dlTimer: null,
   lastSuggestReq: null,
+  autoPronounce: false,
 };
 
 /* ------------------------------ helpers ----------------------------- */
@@ -121,6 +123,10 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+function pronounceWord(word) {
+  call("pronounce", word).catch(() => { /* ignore if bridge not ready */ });
+}
+
 function switchView(name) {
   state.view = name;
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
@@ -143,6 +149,22 @@ els.themeBtn.addEventListener("click", () => {
   applyTheme(next);
 });
 applyTheme(localStorage.getItem("pd-theme") || "light");
+
+/* ---------------------------- auto-pronounce ---------------------------- */
+
+const pronounceToggle = $("#pronounceToggle");
+function applyAutoPronounce(on) {
+  state.autoPronounce = on;
+  pronounceToggle.classList.toggle("active", on);
+  localStorage.setItem("pd-auto-pronounce", on ? "1" : "0");
+}
+pronounceToggle.addEventListener("click", () => {
+  const next = !state.autoPronounce;
+  applyAutoPronounce(next);
+  call("set_auto_pronounce", next).catch(() => { /* ignore */ });
+  toast(next ? "Auto-pronounce on" : "Auto-pronounce off");
+});
+applyAutoPronounce(localStorage.getItem("pd-auto-pronounce") === "1");
 
 /* ------------------------------- search ----------------------------- */
 
@@ -210,6 +232,7 @@ async function doSearch(query, { fromHistory = false } = {}) {
         <div class="word-head">
           <span class="word" ${dirAttr(word)}>${esc(word)}</span>
           ${hasPos ? `<span class="pos-chip">${esc(senses[0].pos)}</span>` : ""}
+          <button class="pronounce-btn" data-say="${esc(word)}" title="Pronounce">${icon("volume", 16)}</button>
         </div>
         <div class="senses">${sensesHtml}</div>
         <div class="word-notes" data-word="${esc(word)}"></div>
@@ -273,9 +296,18 @@ async function doSearch(query, { fromHistory = false } = {}) {
       els.searchInput.focus();
     })
   );
+  /* wire pronounce buttons */
+  els.results.querySelectorAll(".pronounce-btn").forEach((btn) => {
+    btn.addEventListener("click", () => pronounceWord(btn.dataset.say));
+  });
   /* load user notes for all displayed words */
   loadNotes();
-  els.statusText.textContent = `“${q}” — ${fmt(exact.length)} results`;
+  els.statusText.textContent = `”${q}” — ${fmt(exact.length)} results`;
+  /* auto-pronounce first English word */
+  if (state.autoPronounce && exact.length) {
+    const first = exact.find((r) => !isFa(r.word));
+    if (first) pronounceWord(first.word);
+  }
   if (fromHistory) switchView("search");
 }
 
@@ -894,6 +926,7 @@ function renderStudyCard() {
       <div class="flash-word-row">
         <span class="flash-word">${esc(w.word)}</span>
         ${pos}
+        <button class="pronounce-btn" data-act="pronounce" data-word="${esc(w.word)}" title="Pronounce">${icon("volume", 18)}</button>
       </div>
       ${body}
     </div>
@@ -905,6 +938,7 @@ function flipStudyCard() {
   if (study.mode !== "cards" || study.flipped) return;
   study.flipped = true;
   renderStudyCard();
+  if (state.autoPronounce) pronounceWord(study.queue[study.idx].word);
 }
 
 async function rateStudyCard(correct) {
@@ -1016,6 +1050,9 @@ els.studyBody.addEventListener("click", (e) => {
     switchView("search");
     doSearch(t.dataset.word);
   }
+  else if (act === "pronounce") {
+    pronounceWord(t.dataset.word);
+  }
 });
 
 document.addEventListener("keydown", (e) => {
@@ -1087,6 +1124,11 @@ async function boot() {
       none
         ? (installedIds.length === 0 ? "No dictionaries installed" : "No dictionaries enabled")
         : `${enabledIds.length} ${enabledIds.length === 1 ? "dictionary" : "dictionaries"} enabled — offline search active`;
+    /* sync auto-pronounce from backend */
+    try {
+      const ap = await call("get_auto_pronounce");
+      applyAutoPronounce(ap);
+    } catch (e) { /* ignore */ }
   } catch (e) {
     els.statusText.textContent = "Error: " + e.message;
   }
