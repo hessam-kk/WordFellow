@@ -214,9 +214,13 @@ body {
 .icon-btn:active { transform: scale(.94); }
 
 .theme-toggle {
-  justify-self: end;
   width: 30px; height: 30px; padding: 0;
   border-radius: 9px;
+}
+
+.topbar-actions {
+  justify-self: end;
+  display: flex; align-items: center; gap: 6px;
 }
 
 /* ------------------------------ layout ------------------------------ */
@@ -744,7 +748,6 @@ main { flex: 1; overflow-y: auto; position: relative; z-index: 1; }
 .flash-word-row .pronounce-btn { width: 36px; height: 36px; margin-left: 6px; }
 
 .pronounce-toggle {
-  justify-self: end;
   width: 30px; height: 30px; padding: 0;
   border-radius: 9px;
 }
