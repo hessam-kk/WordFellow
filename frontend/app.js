@@ -738,8 +738,6 @@ const study = {
   flipped: false,
   correct: 0,
   mode: "home", // home | cards | browse | end
-  searchQuery: "",
-  searchTimer: null,
   globalQuery: "",
   globalResults: [],
   globalTimer: null,
@@ -816,9 +814,12 @@ async function renderStudyHome() {
     <div class="study-search wide">
       <span class="search-icon">${icon("search", 15)}</span>
       <input id="studyGlobalSearch" type="search" placeholder="Search all ${fmt(total)} words…" value="${esc(study.globalQuery)}" autocomplete="off">
-      ${study.globalQuery ? `<button class="icon-btn clear-btn" data-act="clearGlobalSearch" title="Clear">${icon("x", 14)}</button>` : ""}
+      <button class="icon-btn clear-btn ${study.globalQuery ? "" : "hidden"}" data-act="clearGlobalSearch" title="Clear">${icon("x", 14)}</button>
     </div>
-    ${study.globalQuery ? `<div class="browse-list">${studyGlobalResultsHtml(study.globalResults)}</div>` : `
+    <div id="studyGlobalResults" class="${study.globalQuery ? "" : "hidden"}">
+      <div class="browse-list" id="studyGlobalList">${studyGlobalResultsHtml(study.globalResults)}</div>
+    </div>
+    <div id="studyCategories" class="${study.globalQuery ? "hidden" : ""}">
     <div class="panel-head">
       <div>
         <h2>${esc(study.packTitle)}</h2>
@@ -859,7 +860,8 @@ async function renderStudyHome() {
         </div>`
         )
         .join("")}
-    </div>`}`;
+    </div>
+    </div>`;
 }
 
 function studyGlobalResultsHtml(words) {
@@ -888,19 +890,29 @@ function studyGlobalResultsHtml(words) {
 async function studyGlobalSearchInput() {
   clearTimeout(study.globalTimer);
   study.globalTimer = setTimeout(async () => {
-    const q = els.studyGlobalSearch ? els.studyGlobalSearch.value.trim() : "";
+    const input = document.getElementById("studyGlobalSearch");
+    const q = input ? input.value.trim() : "";
     study.globalQuery = q;
-    if (!q) {
+    const list = document.getElementById("studyGlobalList");
+    const results = document.getElementById("studyGlobalResults");
+    const cats = document.getElementById("studyCategories");
+    const clear = document.querySelector(".study-search.wide .clear-btn");
+    if (q) {
+      try {
+        study.globalResults = await call("study_search_all", q, study.pack);
+      } catch (e) {
+        study.globalResults = [];
+      }
+      if (results) results.classList.remove("hidden");
+      if (cats) cats.classList.add("hidden");
+      if (list) list.innerHTML = studyGlobalResultsHtml(study.globalResults);
+    } else {
       study.globalResults = [];
-      renderStudyHome();
-      return;
+      if (results) results.classList.add("hidden");
+      if (cats) cats.classList.remove("hidden");
+      if (list) list.innerHTML = studyGlobalResultsHtml([]);
     }
-    try {
-      study.globalResults = await call("study_search_all", q, study.pack);
-    } catch (e) {
-      study.globalResults = [];
-    }
-    renderStudyHome();
+    if (clear) clear.classList.toggle("hidden", !q);
   }, 200);
 }
 
@@ -915,7 +927,6 @@ function packPicker(packs) {
 async function openCategory(catId, mode) {
   study.catId = catId;
   study.mode = mode;
-  study.searchQuery = "";
   study.globalQuery = "";
   study.globalResults = [];
   els.studyBody.innerHTML = `<div class="empty"><p class="muted">Loading words…</p></div>`;
@@ -1061,7 +1072,7 @@ function renderStudyEnd() {
 
 function studyRowsHtml(words) {
   if (!words.length) {
-    return `<div class="empty"><p class="muted">No words match "${esc(study.searchQuery)}".</p></div>`;
+    return `<div class="empty"><p class="muted">No words match "${esc(study.globalQuery)}".</p></div>`;
   }
   return words
     .map((w) => {
@@ -1083,7 +1094,6 @@ function studyRowsHtml(words) {
 
 function renderStudyBrowse() {
   study.mode = "browse";
-  const shown = studyRowsFiltered();
   els.studyBody.innerHTML = `
     <div class="study-top">
       <button class="btn sm" data-act="home">${icon("arrowLeft", 13)} All categories</button>
@@ -1096,33 +1106,7 @@ function renderStudyBrowse() {
         <button class="btn danger outlined sm" data-act="reset">Reset progress</button>
       </div>
     </div>
-    <div class="study-search">
-      <span class="search-icon">${icon("search", 15)}</span>
-      <input id="studySearch" type="search" placeholder="Search within this category…" value="${esc(study.searchQuery)}" autocomplete="off">
-      <button class="icon-btn clear-btn ${study.searchQuery ? "" : "hidden"}" data-act="clearSearch" title="Clear">${icon("x", 14)}</button>
-    </div>
-    <div class="browse-list">${studyRowsHtml(shown)}</div>`;
-}
-
-function studySearchInput() {
-  clearTimeout(study.searchTimer);
-  study.searchTimer = setTimeout(() => {
-    study.searchQuery = els.studySearch ? els.studySearch.value.trim() : "";
-    const list = els.studyBody.querySelector(".browse-list");
-    const clear = els.studyBody.querySelector(".study-search .clear-btn");
-    if (list) list.innerHTML = studyRowsHtml(studyRowsFiltered());
-    if (clear) clear.classList.toggle("hidden", !study.searchQuery);
-  }, 150);
-}
-
-function studyRowsFiltered() {
-  if (!study.searchQuery) return study.words;
-  const q = study.searchQuery.toLowerCase();
-  return study.words.filter((w) =>
-    w.word.toLowerCase().includes(q) ||
-    (w.gloss || "").toLowerCase().includes(q) ||
-    (w.defs || []).some((d) => d.text.toLowerCase().includes(q))
-  );
+    <div class="browse-list">${studyRowsHtml(study.words)}</div>`;
 }
 
 async function resetStudyCategory(btn) {
@@ -1158,10 +1142,6 @@ els.studyBody.addEventListener("click", (e) => {
   else if (act === "home") renderStudyHome();
   else if (act === "restart") openCategory(study.catId, "cards");
   else if (act === "reset") resetStudyCategory(t);
-  else if (act === "clearSearch") {
-    study.searchQuery = "";
-    renderStudyBrowse();
-  }
   else if (act === "clearGlobalSearch") {
     study.globalQuery = "";
     study.globalResults = [];
@@ -1178,14 +1158,12 @@ els.studyBody.addEventListener("click", (e) => {
 });
 
 els.studyBody.addEventListener("input", (e) => {
-  if (e.target.id === "studySearch") studySearchInput();
-  else if (e.target.id === "studyGlobalSearch") studyGlobalSearchInput();
+  if (e.target.id === "studyGlobalSearch") studyGlobalSearchInput();
 });
 
 els.studyBody.addEventListener("change", (e) => {
   if (e.target.id === "studyPackSelect") {
     study.pack = e.target.value;
-    study.searchQuery = "";
     study.globalQuery = "";
     study.globalResults = [];
     renderStudyHome();
