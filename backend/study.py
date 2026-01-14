@@ -105,6 +105,22 @@ class StudyPack:
                     break
         return out
 
+    def search_all(self, query: str, limit: int = 200):
+        """Words across *every* category of the pack, each tagged with its
+        category id/name.  Matching is the same as :meth:`search`."""
+        q = (query or "").strip().lower()
+        if not q:
+            return []
+        out = []
+        for c in self.categories():
+            for w in c["words"]:
+                if q in w["word"].lower() or q in (w["gloss"] or "").lower():
+                    out.append({"word": w["word"], "gloss": w["gloss"],
+                                "cat_id": c["id"], "cat_name": c["name"]})
+                    if len(out) >= limit:
+                        return out
+        return out
+
     def info(self) -> dict:
         return {
             "id": self.pack_id,

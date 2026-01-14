@@ -730,6 +730,17 @@ main { flex: 1; overflow-y: auto; position: relative; z-index: 1; }
 }
 .study-search input::placeholder { color: var(--ink-3); }
 
+.study-search.wide { margin: 2px 0 22px; }
+
+.brow-cat {
+  flex-shrink: 0;
+  font-size: 11.5px; color: var(--ink-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
 .pack-picker {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 12.5px; margin-top: 8px;

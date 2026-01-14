@@ -291,6 +291,50 @@ class Api:
             return []
         return self._study_entries(pack, pack.search(cat_id, query))
 
+    def study_search_all(self, query: str, pack_id: str = "1212"):
+        """Search the whole pack (every category) — matches carry the
+        category they belong to."""
+        pack = self._study_pack(pack_id)
+        if not pack:
+            return []
+        prog = self.db.study_all(pack.pack_id)
+        enabled = self._enabled_ids()
+        out = []
+        for w in pack.search_all(query):
+            p = prog.get(w["word"], {"box": 0, "seen": 0, "correct": 0})
+            hits = self.db.exact(w["word"], enabled=enabled, limit_total=30)
+            wn = [h for h in hits if h["source"] == "wn" and h["definition"]]
+            enfa = [h for h in hits if h["source"] == "enfa" and h["definition"]]
+            ordered = []
+            if enfa:
+                ordered.append(enfa[0])
+            if wn:
+                ordered.append(wn[0])
+            ordered.extend(enfa[1:])
+            ordered.extend(wn[1:])
+            defs = [
+                {"src": h["source"], "text": h["definition"]} for h in ordered[:5]
+            ]
+            pos = ""
+            for h in enfa + wn:
+                if h["pos"] and h["pos"] != "None":
+                    pos = h["pos"]
+                    break
+            out.append(
+                {
+                    "word": w["word"],
+                    "gloss": w["gloss"],
+                    "cat_id": w["cat_id"],
+                    "cat_name": w["cat_name"],
+                    "defs": defs,
+                    "pos": pos,
+                    "box": p["box"],
+                    "seen": p["seen"],
+                    "correct": p["correct"],
+                }
+            )
+        return out
+
     def study_rate(self, word: str, correct: bool, pack_id: str = "1212"):
         pack = self._study_pack(pack_id)
         if not pack:

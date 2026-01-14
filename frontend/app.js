@@ -740,6 +740,9 @@ const study = {
   mode: "home", // home | cards | browse | end
   searchQuery: "",
   searchTimer: null,
+  globalQuery: "",
+  globalResults: [],
+  globalTimer: null,
 };
 
 const BOX_LABEL = ["New", "Learning", "Review", "Mastered"];
@@ -810,6 +813,12 @@ async function renderStudyHome() {
   const pct = total ? Math.round((mastered / total) * 100) : 0;
 
   els.studyBody.innerHTML = `
+    <div class="study-search wide">
+      <span class="search-icon">${icon("search", 15)}</span>
+      <input id="studyGlobalSearch" type="search" placeholder="Search all ${fmt(total)} words…" value="${esc(study.globalQuery)}" autocomplete="off">
+      ${study.globalQuery ? `<button class="icon-btn clear-btn" data-act="clearGlobalSearch" title="Clear">${icon("x", 14)}</button>` : ""}
+    </div>
+    ${study.globalQuery ? `<div class="browse-list">${studyGlobalResultsHtml(study.globalResults)}</div>` : `
     <div class="panel-head">
       <div>
         <h2>${esc(study.packTitle)}</h2>
@@ -850,7 +859,49 @@ async function renderStudyHome() {
         </div>`
         )
         .join("")}
-    </div>`;
+    </div>`}`;
+}
+
+function studyGlobalResultsHtml(words) {
+  if (!words.length) {
+    return `<div class="empty"><p class="muted">No words match "${esc(study.globalQuery)}".</p></div>`;
+  }
+  return words
+    .map((w) => {
+      const def = (w.defs && w.defs.length ? w.defs.map((d) => d.text).join(" · ") : "") || w.gloss || "—";
+      const short = def.length > 110 ? def.slice(0, 110) + "…" : def;
+      const cls = w.box >= 3 ? "mastered" : w.box >= 1 ? "learning" : "new";
+      return `
+      <div class="brow-row" data-act="open" data-cat="${esc(w.cat_id)}" title="Open category ${esc(w.cat_name)}">
+        <span class="status-chip ${cls}">${BOX_LABEL[w.box]}</span>
+        <div class="brow-main">
+          <b class="brow-word" dir="ltr">${esc(w.word)}</b>
+          <span class="brow-def" ${dirAttr(short)}>${esc(short)}</span>
+        </div>
+        <span class="brow-cat">${esc(w.cat_name)}</span>
+        ${icon("arrowRight", 14)}
+      </div>`;
+    })
+    .join("");
+}
+
+async function studyGlobalSearchInput() {
+  clearTimeout(study.globalTimer);
+  study.globalTimer = setTimeout(async () => {
+    const q = els.studyGlobalSearch ? els.studyGlobalSearch.value.trim() : "";
+    study.globalQuery = q;
+    if (!q) {
+      study.globalResults = [];
+      renderStudyHome();
+      return;
+    }
+    try {
+      study.globalResults = await call("study_search_all", q, study.pack);
+    } catch (e) {
+      study.globalResults = [];
+    }
+    renderStudyHome();
+  }, 200);
 }
 
 function packPicker(packs) {
@@ -865,6 +916,8 @@ async function openCategory(catId, mode) {
   study.catId = catId;
   study.mode = mode;
   study.searchQuery = "";
+  study.globalQuery = "";
+  study.globalResults = [];
   els.studyBody.innerHTML = `<div class="empty"><p class="muted">Loading words…</p></div>`;
   let words;
   try {
@@ -1103,6 +1156,11 @@ els.studyBody.addEventListener("click", (e) => {
     study.searchQuery = "";
     renderStudyBrowse();
   }
+  else if (act === "clearGlobalSearch") {
+    study.globalQuery = "";
+    study.globalResults = [];
+    renderStudyHome();
+  }
   else if (act === "word") {
     els.searchInput.value = t.dataset.word;
     switchView("search");
@@ -1115,12 +1173,15 @@ els.studyBody.addEventListener("click", (e) => {
 
 els.studyBody.addEventListener("input", (e) => {
   if (e.target.id === "studySearch") studySearchInput();
+  else if (e.target.id === "studyGlobalSearch") studyGlobalSearchInput();
 });
 
 els.studyBody.addEventListener("change", (e) => {
   if (e.target.id === "studyPackSelect") {
     study.pack = e.target.value;
     study.searchQuery = "";
+    study.globalQuery = "";
+    study.globalResults = [];
     renderStudyHome();
   }
 });
