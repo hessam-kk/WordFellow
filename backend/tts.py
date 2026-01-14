@@ -84,6 +84,12 @@ def say(word: str):
     _q.put(word)
 
 
+def ensure_started():
+    """Spin up the worker thread so the engine initialises eagerly (used at
+    boot so the footer can show whether TTS is ready)."""
+    _ensure_thread()
+
+
 def state() -> dict:
     """Diagnostics for the frontend/tests: engine readiness + last error."""
     return dict(_state)
