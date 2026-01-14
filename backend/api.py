@@ -5,6 +5,7 @@ import threading
 
 from . import downloader
 from . import study1212
+from . import tts
 from .db import DictDB
 from .parsers import parse_source
 from .sources import RAW_FILES, SOURCES, URLS, get_source
@@ -273,6 +274,24 @@ class Api:
         if cat:
             self.db.study_reset([w["word"] for w in cat["words"]])
         return True
+
+    # ----------------------------------------------------------- pronunciation
+
+    def pronounce(self, word: str):
+        """Speak *word* aloud using offline TTS (pyttsx3 / SAPI5).
+        Runs in a dedicated worker thread so the GUI stays responsive."""
+        tts.say(word)
+
+    def tts_state(self) -> dict:
+        """Return TTS diagnostics: ready, last error, word count."""
+        return tts.state()
+
+    def set_auto_pronounce(self, enabled: bool):
+        self.db.set_meta("auto_pronounce", "1" if enabled else "0")
+        return True
+
+    def get_auto_pronounce(self) -> bool:
+        return self.db.get_meta("auto_pronounce", "0") == "1"
 
     def close(self):
         self.db.close()
