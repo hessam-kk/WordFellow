@@ -724,9 +724,12 @@ function stopPolling() {
   state.dlTimer = null;
 }
 
-/* ---------------------------- 1212 study ---------------------------- */
+/* ------------------------------ study ------------------------------ */
 
 const study = {
+  pack: "1212",
+  packTitle: "1212 Words",
+  packDesc: "",
   catId: null,
   catName: "",
   words: [],
@@ -735,6 +738,8 @@ const study = {
   flipped: false,
   correct: 0,
   mode: "home", // home | cards | browse | end
+  searchQuery: "",
+  searchTimer: null,
 };
 
 const BOX_LABEL = ["New", "Learning", "Review", "Mastered"];
@@ -767,9 +772,20 @@ function studySegBar(c) {
 
 async function renderStudyHome() {
   study.mode = "home";
+  let packs = [];
+  try {
+    packs = await call("study_packs");
+  } catch (e) { /* fall back below */ }
+  const pack = Array.isArray(packs) && packs.length
+    ? packs.find((p) => p.id === study.pack) || packs[0]
+    : { id: "1212", title: "Study", description: "", folder: "word list folder" };
+  if (pack.id !== study.pack) study.pack = pack.id;
+  study.packTitle = pack.title || "Study";
+  study.packDesc = pack.description || "";
+
   let cats;
   try {
-    cats = await call("study_categories");
+    cats = await call("study_categories", study.pack);
   } catch (e) {
     els.studyBody.innerHTML = `
       <div class="empty">
@@ -784,7 +800,7 @@ async function renderStudyHome() {
       <div class="empty">
         <div class="empty-art">${icon("book", 46)}</div>
         <p class="empty-title">No word list found</p>
-        <p class="muted">Place the 1212_Category folder next to the app files.</p>
+        <p class="muted">Place the <b>${esc(pack.folder)}</b> folder next to the app files.</p>
       </div>`;
     return;
   }
@@ -796,9 +812,9 @@ async function renderStudyHome() {
   els.studyBody.innerHTML = `
     <div class="panel-head">
       <div>
-        <h2>1212 Words</h2>
-        <p class="panel-note muted">The essential TOEFL vocabulary, grouped into ${cats.length} topics.
-        Study with flashcards — words you miss come back until you master them.</p>
+        <h2>${esc(study.packTitle)}</h2>
+        <p class="panel-note muted">${esc(study.packDesc) || "Study with flashcards — words you miss come back until you master them."}
+        ${packs.length > 1 ? packPicker(packs) : ""}</p>
       </div>
       <div class="study-overall">
         <div class="so-num"><b>${fmt(mastered)}</b> / ${fmt(total)} mastered</div>
@@ -837,20 +853,29 @@ async function renderStudyHome() {
     </div>`;
 }
 
+function packPicker(packs) {
+  return `<label class="pack-picker muted">Word list
+    <select id="studyPackSelect">
+      ${packs.map((p) => `<option value="${esc(p.id)}" ${p.id === study.pack ? "selected" : ""}>${esc(p.title)}</option>`).join("")}
+    </select>
+  </label>`;
+}
+
 async function openCategory(catId, mode) {
   study.catId = catId;
   study.mode = mode;
+  study.searchQuery = "";
   els.studyBody.innerHTML = `<div class="empty"><p class="muted">Loading words…</p></div>`;
   let words;
   try {
-    words = await call("study_words", catId);
+    words = await call("study_words", catId, study.pack);
   } catch (e) {
     toast("Error loading words: " + e.message);
     renderStudyHome();
     return;
   }
   study.words = words;
-  const catsInfo = await call("study_categories").catch(() => []);
+  const catsInfo = await call("study_categories", study.pack).catch(() => []);
   const info = (catsInfo || []).find((c) => c.id === catId);
   study.catName = info ? info.name : "Category " + catId;
   if (mode === "browse") renderStudyBrowse();
@@ -948,7 +973,7 @@ async function rateStudyCard(correct) {
   const w = study.queue[study.idx];
   if (correct) study.correct++;
   try {
-    await call("study_rate", w.word, correct);
+    await call("study_rate", w.word, correct, study.pack);
   } catch (e) {
     toast("Error saving progress");
   }
@@ -981,9 +1006,11 @@ function renderStudyEnd() {
     </div>`;
 }
 
-function renderStudyBrowse() {
-  study.mode = "browse";
-  const rows = study.words
+function studyRowsHtml(words) {
+  if (!words.length) {
+    return `<div class="empty"><p class="muted">No words match "${esc(study.searchQuery)}".</p></div>`;
+  }
+  return words
     .map((w) => {
       const def = (w.defs && w.defs.length ? w.defs.map((d) => d.text).join(" · ") : "") || w.gloss || "—";
       const short = def.length > 110 ? def.slice(0, 110) + "…" : def;
@@ -999,6 +1026,18 @@ function renderStudyBrowse() {
       </div>`;
     })
     .join("");
+}
+
+function renderStudyBrowse() {
+  study.mode = "browse";
+  const shown = study.searchQuery ? study.words.filter((w) => {
+    const q = study.searchQuery.toLowerCase();
+    return (
+      w.word.toLowerCase().includes(q) ||
+      (w.gloss || "").toLowerCase().includes(q) ||
+      (w.defs || []).some((d) => d.text.toLowerCase().includes(q))
+    );
+  }) : study.words;
   els.studyBody.innerHTML = `
     <div class="study-top">
       <button class="btn sm" data-act="home">${icon("arrowLeft", 13)} All categories</button>
@@ -1011,13 +1050,26 @@ function renderStudyBrowse() {
         <button class="btn danger outlined sm" data-act="reset">Reset progress</button>
       </div>
     </div>
-    <div class="browse-list">${rows}</div>`;
+    <div class="study-search">
+      <span class="search-icon">${icon("search", 15)}</span>
+      <input id="studySearch" type="search" placeholder="Search within this category…" value="${esc(study.searchQuery)}" autocomplete="off">
+      ${study.searchQuery ? `<button class="icon-btn clear-btn" data-act="clearSearch" title="Clear">${icon("x", 14)}</button>` : ""}
+    </div>
+    <div class="browse-list">${studyRowsHtml(shown)}</div>`;
+}
+
+function studySearchInput() {
+  clearTimeout(study.searchTimer);
+  study.searchTimer = setTimeout(() => {
+    study.searchQuery = els.studySearch ? els.studySearch.value.trim() : "";
+    renderStudyBrowse();
+  }, 150);
 }
 
 async function resetStudyCategory(btn) {
   if (btn.dataset.armed) {
     try {
-      await call("study_reset", study.catId);
+      await call("study_reset", study.catId, study.pack);
     } catch (e) {
       toast("Error resetting");
       return;
@@ -1047,6 +1099,10 @@ els.studyBody.addEventListener("click", (e) => {
   else if (act === "home") renderStudyHome();
   else if (act === "restart") openCategory(study.catId, "cards");
   else if (act === "reset") resetStudyCategory(t);
+  else if (act === "clearSearch") {
+    study.searchQuery = "";
+    renderStudyBrowse();
+  }
   else if (act === "word") {
     els.searchInput.value = t.dataset.word;
     switchView("search");
@@ -1054,6 +1110,18 @@ els.studyBody.addEventListener("click", (e) => {
   }
   else if (act === "pronounce") {
     pronounceWord(t.dataset.word);
+  }
+});
+
+els.studyBody.addEventListener("input", (e) => {
+  if (e.target.id === "studySearch") studySearchInput();
+});
+
+els.studyBody.addEventListener("change", (e) => {
+  if (e.target.id === "studyPackSelect") {
+    study.pack = e.target.value;
+    study.searchQuery = "";
+    renderStudyHome();
   }
 });
 

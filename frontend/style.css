@@ -709,6 +709,37 @@ main { flex: 1; overflow-y: auto; position: relative; z-index: 1; }
 
 /* browse list */
 .browse-list { display: flex; flex-direction: column; gap: 9px; }
+
+.study-search {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 4px 8px 4px 14px;
+  margin-bottom: 16px;
+  transition: border-color .2s, box-shadow .25s;
+}
+.study-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--ring);
+}
+.study-search input {
+  flex: 1; border: 0; outline: 0; background: transparent;
+  font: inherit; font-size: 14.5px; color: var(--ink);
+  padding: 8px 0; min-width: 0;
+}
+.study-search input::placeholder { color: var(--ink-3); }
+
+.pack-picker {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12.5px; margin-top: 8px;
+}
+.pack-picker select {
+  font: inherit; font-size: 12.5px;
+  background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 4px 8px; outline: 0; cursor: pointer;
+}
 .brow-row {
   display: flex; align-items: center; gap: 14px;
   background: var(--surface); border: 1px solid var(--border);

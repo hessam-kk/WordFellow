@@ -50,12 +50,14 @@ CREATE TABLE IF NOT EXISTS user_notes(
   updated REAL NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS study1212(
-  word TEXT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS study(
+  pack TEXT NOT NULL,
+  word TEXT NOT NULL,
   box INTEGER NOT NULL DEFAULT 0,
   seen INTEGER NOT NULL DEFAULT 0,
   correct INTEGER NOT NULL DEFAULT 0,
-  last_seen REAL NOT NULL DEFAULT 0
+  last_seen REAL NOT NULL DEFAULT 0,
+  PRIMARY KEY (pack, word)
 );
 """
 
@@ -72,12 +74,14 @@ class DictDB:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA busy_timeout=10000")
         self._conn.executescript(_SCHEMA)
+        self._migrate_study(self._conn)
 
     def connect(self) -> sqlite3.Connection:
         """A separate connection for import workers."""
         conn = sqlite3.connect(self.path)
         conn.execute("PRAGMA busy_timeout=30000")
         conn.executescript(_SCHEMA)
+        self._migrate_study(conn)
         return conn
 
     # ------------------------------------------------------------- imports
@@ -339,40 +343,55 @@ class DictDB:
         self._conn.execute("DELETE FROM user_notes WHERE word = ?", (word,))
         self._conn.commit()
 
-    # ------------------------------------------------------ 1212 study progress
+    # ------------------------------------------------------- study progress
 
-    def study_all(self) -> dict:
+    def _migrate_study(self, conn: sqlite3.Connection):
+        """Upgrade the legacy per-word study1212 table to the pack-keyed
+        study table (any existing progress is kept under the '1212' pack)."""
+        has_old = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='study1212'"
+        ).fetchone()
+        if not has_old:
+            return
+        conn.execute(
+            "INSERT OR IGNORE INTO study (pack, word, box, seen, correct, last_seen) "
+            "SELECT '1212', word, box, seen, correct, last_seen FROM study1212"
+        )
+        conn.execute("DROP TABLE study1212")
+        conn.commit()
+
+    def study_all(self, pack: str = "1212") -> dict:
         rows = self._conn.execute(
-            "SELECT word, box, seen, correct FROM study1212"
+            "SELECT word, box, seen, correct FROM study WHERE pack = ?", (pack,)
         ).fetchall()
         return {r[0]: {"box": r[1], "seen": r[2], "correct": r[3]} for r in rows}
 
-    def study_rate(self, word: str, correct: bool) -> int:
+    def study_rate(self, pack: str, word: str, correct: bool) -> int:
         """Leitner boxes: 0 new, 1 learning, 2 review, 3 mastered.
         Correct answers advance one box; a miss sends the word back to 0."""
         now = time.time()
         row = self._conn.execute(
-            "SELECT box FROM study1212 WHERE word = ?", (word,)
+            "SELECT box FROM study WHERE pack = ? AND word = ?", (pack, word)
         ).fetchone()
         box = (0 if row is None else row[0])
         box = min(3, box + 1) if correct else 0
         self._conn.execute(
-            "INSERT INTO study1212 (word, box, seen, correct, last_seen) VALUES (?,?,1,?,?)"
-            " ON CONFLICT(word) DO UPDATE SET box = ?, seen = seen + 1,"
+            "INSERT INTO study (pack, word, box, seen, correct, last_seen) VALUES (?,?,?,1,?,?)"
+            " ON CONFLICT(pack, word) DO UPDATE SET box = ?, seen = seen + 1,"
             " correct = correct + ?, last_seen = ?",
-            (word, box, 1 if correct else 0, now, box, 1 if correct else 0, now),
+            (pack, word, box, 1 if correct else 0, now, box, 1 if correct else 0, now),
         )
         self._conn.commit()
         return box
 
-    def study_reset(self, words: list[str]):
+    def study_reset(self, pack: str, words: list[str]):
         if not words:
             return
         self._conn.execute(
-            "DELETE FROM study1212 WHERE word IN ({})".format(
+            "DELETE FROM study WHERE pack = ? AND word IN ({})".format(
                 ",".join("?" * len(words))
             ),
-            words,
+            [pack] + words,
         )
         self._conn.commit()
 

@@ -4,7 +4,8 @@ import os
 import threading
 
 from . import downloader
-from . import study1212
+from . import study
+from . import study1212  # noqa: F401 — registers the 1212 study pack
 from . import tts
 from .db import DictDB
 from .parsers import parse_source
@@ -193,13 +194,23 @@ class Api:
         self.db.delete_note(word.strip())
         return True
 
-    # ------------------------------------------------------------- 1212 study
+    # ---------------------------------------------------------------- study
 
-    def study_categories(self):
-        """The 15 topic categories with per-word progress breakdowns."""
-        prog = self.db.study_all()
+    def study_packs(self) -> list:
+        """Every registered study pack (e.g. the 1212 TOEFL list)."""
+        return [p.info() for p in study.packs()]
+
+    def _study_pack(self, pack_id: str):
+        return study.get_pack(pack_id or "1212")
+
+    def study_categories(self, pack_id: str = "1212"):
+        """The topic categories of a pack with per-word progress breakdowns."""
+        pack = self._study_pack(pack_id)
+        if not pack:
+            return []
+        prog = self.db.study_all(pack.pack_id)
         out = []
-        for c in study1212.categories():
+        for c in pack.categories():
             new = learning = mastered = 0
             for w in c["words"]:
                 box = prog.get(w["word"], {}).get("box", 0)
@@ -221,17 +232,12 @@ class Api:
             )
         return out
 
-    def study_words(self, cat_id: str):
-        """Words of one category. Up to 5 definitions per word come from
-        the installed dictionaries (English-Persian and WordNet senses);
-        the word-list gloss is always included as an extra fallback."""
-        cat = study1212.get_category(cat_id)
-        if not cat:
-            return []
-        prog = self.db.study_all()
+    def _study_entries(self, pack: "study.StudyPack", words: list) -> list:
+        """Enrich raw word-list rows with dictionary definitions + progress."""
+        prog = self.db.study_all(pack.pack_id)
         enabled = self._enabled_ids()
         out = []
-        for w in cat["words"]:
+        for w in words:
             word = w["word"]
             p = prog.get(word, {"box": 0, "seen": 0, "correct": 0})
             hits = self.db.exact(word, enabled=enabled, limit_total=30)
@@ -265,14 +271,40 @@ class Api:
             )
         return out
 
-    def study_rate(self, word: str, correct: bool):
-        box = self.db.study_rate(word.strip(), bool(correct))
+    def study_words(self, cat_id: str, pack_id: str = "1212"):
+        """Words of one category. Up to 5 definitions per word come from
+        the installed dictionaries (English-Persian and WordNet senses);
+        the word-list gloss is always included as an extra fallback."""
+        pack = self._study_pack(pack_id)
+        if not pack:
+            return []
+        cat = pack.get_category(cat_id)
+        if not cat:
+            return []
+        return self._study_entries(pack, cat["words"])
+
+    def study_search(self, cat_id: str, query: str, pack_id: str = "1212"):
+        """Search only within one category of a pack — the word or its
+        gloss must contain the query."""
+        pack = self._study_pack(pack_id)
+        if not pack:
+            return []
+        return self._study_entries(pack, pack.search(cat_id, query))
+
+    def study_rate(self, word: str, correct: bool, pack_id: str = "1212"):
+        pack = self._study_pack(pack_id)
+        if not pack:
+            return {"ok": False, "box": 0}
+        box = self.db.study_rate(pack.pack_id, word.strip(), bool(correct))
         return {"ok": True, "box": box}
 
-    def study_reset(self, cat_id: str):
-        cat = study1212.get_category(cat_id)
+    def study_reset(self, cat_id: str, pack_id: str = "1212"):
+        pack = self._study_pack(pack_id)
+        if not pack:
+            return True
+        cat = pack.get_category(cat_id)
         if cat:
-            self.db.study_reset([w["word"] for w in cat["words"]])
+            self.db.study_reset(pack.pack_id, [w["word"] for w in cat["words"]])
         return True
 
     # ----------------------------------------------------------- pronunciation

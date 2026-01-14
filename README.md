@@ -44,25 +44,41 @@ and spaced repetition, plus **personal notes** on any word.
 
 ---
 
-## 1212 word list — study mode
+## Study mode (reusable word-learning framework)
 
-The `1212_Category/` folder holds the **1212 essential TOEFL words** split
-into 15 topic files (`01_research_evidence_scientific_inquiry.txt`, …).
-Every line is `word: gloss: gloss`, e.g.:
+The study feature is a **generic framework** (`backend/study.py`) — not tied
+to any one word list. A *study pack* is just a folder of topic files, and any
+pack that follows the layout gets flashcards, Leitner-box progress, browsing
+and per-category search for free. The built-in list is the **1212 essential
+TOEFL words** in `1212_Category/` (15 topic files, e.g.
+`01_research_evidence_scientific_inquiry.txt`). Every line is
+`word: gloss: gloss`, e.g.:
 
 ```
 anomaly: irregularity
 aggregate: combined: overall
 ```
 
+To add your own list, drop a new folder of topic files next to `1212_Category/`
+and register it in a few lines:
+
+```python
+# backend/study_my_words.py — then import it from api.py
+from .study import StudyPack, register
+register(StudyPack(pack_id="my_words", folder="My_Words",
+                   title="My Words", description="..."))
+```
+
 The **words** are the study material; the file glosses are shown alongside.
-Open the **1212 Words** tab to:
+Open the study tab to:
 
 - **Study** a category with **flashcards**: reveal the meaning, then rate
   yourself — *Again* (key `1`) or *Got it* (key `2`). `Space` flips a card.
 - Meanings are looked up live in the **installed dictionaries** — up to 5
   senses per word (English-Persian and WordNet), with the word-list gloss
   always shown first.
+- **Search within a category** while browsing — matches the word, its gloss
+  and the live dictionary definitions, limited to the current category.
 - Progress uses **Leitner boxes**: every word moves
   `New → Learning → Review → Mastered`; a miss sends it back to *New*.
   Sessions deal up to 15 cards, always prioritizing the weakest words, and
@@ -70,7 +86,7 @@ Open the **1212 Words** tab to:
 - **Browse** the full category word list with per-word status; clicking a
   word opens it in the Search tab (where you can attach a note).
 - Jumping to the dictionary mid-session (or switching tabs) **keeps your
-  session state** — the 1212 tab resumes exactly where you left off.
+  session state** — the study tab resumes exactly where you left off.
 - Each category has a **Reset progress** button (click twice to confirm).
 
 ---
@@ -105,11 +121,12 @@ main.py                 pywebview window + entry point
 backend/
   api.py                bridge between the UI (JS) and Python
   db.py                 SQLite storage: entries, reverse index, history,
-                        user notes, 1212 study progress
+                        user notes, study progress
   parsers.py            bulk importers for each source format
   downloader.py         streaming download with progress (no per-word calls)
   sources.py            built-in dictionary manifest (URLs, sizes, licenses)
-  study1212.py          loader for the 1212_Category word list
+  study.py              generic study-pack framework (categories, search, flashcards)
+  study1212.py          registers the 1212_Category TOEFL list as a study pack
   normalize.py          Persian/Arabic text normalization
 frontend/
   index.html, style.css, app.js   the UI (vanilla JS, direction-aware)
@@ -149,9 +166,10 @@ single batch after each search.
 
 ### Study progress
 
-The `study1212` table stores a Leitner box (0–3) plus seen/correct counters
-per word. Category progress bars and session queues are derived from it;
-all updates go through the `study_rate` bridge method.
+The `study` table stores a Leitner box (0–3) plus seen/correct counters per
+word, keyed by study pack (so separate word lists never collide). Category
+progress bars and session queues are derived from it; all updates go through
+the `study_rate` bridge method.
 
 ---
 
