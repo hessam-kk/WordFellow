@@ -15,6 +15,7 @@ const els = {
   sourcesList: $("#sourcesList"),
   studyBody: $("#studyBody"),
   statusText: $("#statusText"),
+  ttsStatus: $("#ttsStatus"),
   toast: $("#toast"),
   themeBtn: $("#themeBtn"),
 };
@@ -1255,9 +1256,31 @@ async function boot() {
       const ap = await call("get_auto_pronounce");
       applyAutoPronounce(ap);
     } catch (e) { /* ignore */ }
+    /* TTS engine status in the footer */
+    updateTtsStatus();
   } catch (e) {
     els.statusText.textContent = "Error: " + e.message;
   }
+}
+
+async function updateTtsStatus() {
+  try {
+    const st = await call("tts_state");
+    const el = els.ttsStatus;
+    if (!el) return;
+    el.classList.remove("hidden");
+    if (st.error) {
+      el.textContent = "TTS unavailable";
+      el.className = "status-chip tts err";
+    } else if (st.ready) {
+      el.textContent = "TTS ready";
+      el.className = "status-chip tts ok";
+    } else {
+      el.textContent = "TTS starting…";
+      el.className = "status-chip tts";
+      setTimeout(updateTtsStatus, 800);
+    }
+  } catch (e) { /* ignore */ }
 }
 
 window.addEventListener("pywebviewready", boot);

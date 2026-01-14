@@ -360,6 +360,7 @@ class Api:
 
     def tts_state(self) -> dict:
         """Return TTS diagnostics: ready, last error, word count."""
+        tts.ensure_started()
         return tts.state()
 
     def set_auto_pronounce(self, enabled: bool):
