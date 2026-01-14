@@ -764,6 +764,11 @@ main { flex: 1; overflow-y: auto; position: relative; z-index: 1; }
   box-shadow: var(--shadow-md); transform: translateY(-1px);
 }
 .brow-row > svg { flex: 0 0 auto; color: var(--ink-3); }
+.brow-row.flash {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--ring), var(--shadow-md);
+  animation: none;
+}
 .brow-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .brow-word { font-family: var(--serif); font-size: 16px; font-weight: 700; }
 .brow-def {

@@ -874,7 +874,7 @@ function studyGlobalResultsHtml(words) {
       const short = def.length > 110 ? def.slice(0, 110) + "…" : def;
       const cls = w.box >= 3 ? "mastered" : w.box >= 1 ? "learning" : "new";
       return `
-      <div class="brow-row" data-act="open" data-cat="${esc(w.cat_id)}" title="Open category ${esc(w.cat_name)}">
+      <div class="brow-row" data-act="openWord" data-cat="${esc(w.cat_id)}" data-word="${esc(w.word)}" title="Open ${esc(w.word)} in category ${esc(w.cat_name)}">
         <span class="status-chip ${cls}">${BOX_LABEL[w.box]}</span>
         <div class="brow-main">
           <b class="brow-word" dir="ltr">${esc(w.word)}</b>
@@ -924,7 +924,7 @@ function packPicker(packs) {
   </label>`;
 }
 
-async function openCategory(catId, mode) {
+async function openCategory(catId, mode, highlightWord) {
   study.catId = catId;
   study.mode = mode;
   study.globalQuery = "";
@@ -942,8 +942,18 @@ async function openCategory(catId, mode) {
   const catsInfo = await call("study_categories", study.pack).catch(() => []);
   const info = (catsInfo || []).find((c) => c.id === catId);
   study.catName = info ? info.name : "Category " + catId;
-  if (mode === "browse") renderStudyBrowse();
-  else startSession();
+  if (mode === "browse") {
+    renderStudyBrowse();
+    if (highlightWord) scrollToWord(highlightWord);
+  } else startSession();
+}
+
+function scrollToWord(word) {
+  const row = els.studyBody.querySelector(`.brow-row[data-word="${CSS.escape(word)}"]`);
+  if (!row) return;
+  row.classList.add("flash");
+  row.scrollIntoView({ block: "center", behavior: "smooth" });
+  setTimeout(() => row.classList.remove("flash"), 2200);
 }
 
 function startSession() {
@@ -1136,6 +1146,7 @@ els.studyBody.addEventListener("click", (e) => {
   const act = t.dataset.act;
   if (act === "open") openCategory(t.dataset.cat, "cards");
   else if (act === "browse") openCategory(t.dataset.cat, "browse");
+  else if (act === "openWord") openCategory(t.dataset.cat, "browse", t.dataset.word);
   else if (act === "flip") flipStudyCard();
   else if (act === "again") rateStudyCard(false);
   else if (act === "got") rateStudyCard(true);
