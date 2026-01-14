@@ -932,6 +932,8 @@ function renderStudyCard() {
     </div>
     <div class="rate-btns">${rates}</div>
     ${dictBtn}`;
+  /* front side: pronounce the new word automatically */
+  if (!study.flipped && state.autoPronounce) pronounceWord(w.word);
 }
 
 function flipStudyCard() {
