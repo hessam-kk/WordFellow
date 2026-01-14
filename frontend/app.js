@@ -813,7 +813,7 @@ async function renderStudyHome() {
   els.studyBody.innerHTML = `
     <div class="study-search wide">
       <span class="search-icon">${icon("search", 15)}</span>
-      <input id="studyGlobalSearch" type="search" placeholder="Search all ${fmt(total)} words…" value="${esc(study.globalQuery)}" autocomplete="off">
+      <input id="studyGlobalSearch" type="text" placeholder="Search all ${fmt(total)} words…" value="${esc(study.globalQuery)}" autocomplete="off" spellcheck="false">
       <button class="icon-btn clear-btn ${study.globalQuery ? "" : "hidden"}" data-act="clearGlobalSearch" title="Clear">${icon("x", 14)}</button>
     </div>
     <div id="studyGlobalResults" class="${study.globalQuery ? "" : "hidden"}">
