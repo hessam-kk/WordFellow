@@ -1083,14 +1083,7 @@ function studyRowsHtml(words) {
 
 function renderStudyBrowse() {
   study.mode = "browse";
-  const shown = study.searchQuery ? study.words.filter((w) => {
-    const q = study.searchQuery.toLowerCase();
-    return (
-      w.word.toLowerCase().includes(q) ||
-      (w.gloss || "").toLowerCase().includes(q) ||
-      (w.defs || []).some((d) => d.text.toLowerCase().includes(q))
-    );
-  }) : study.words;
+  const shown = studyRowsFiltered();
   els.studyBody.innerHTML = `
     <div class="study-top">
       <button class="btn sm" data-act="home">${icon("arrowLeft", 13)} All categories</button>
@@ -1106,7 +1099,7 @@ function renderStudyBrowse() {
     <div class="study-search">
       <span class="search-icon">${icon("search", 15)}</span>
       <input id="studySearch" type="search" placeholder="Search within this category…" value="${esc(study.searchQuery)}" autocomplete="off">
-      ${study.searchQuery ? `<button class="icon-btn clear-btn" data-act="clearSearch" title="Clear">${icon("x", 14)}</button>` : ""}
+      <button class="icon-btn clear-btn ${study.searchQuery ? "" : "hidden"}" data-act="clearSearch" title="Clear">${icon("x", 14)}</button>
     </div>
     <div class="browse-list">${studyRowsHtml(shown)}</div>`;
 }
@@ -1115,8 +1108,21 @@ function studySearchInput() {
   clearTimeout(study.searchTimer);
   study.searchTimer = setTimeout(() => {
     study.searchQuery = els.studySearch ? els.studySearch.value.trim() : "";
-    renderStudyBrowse();
+    const list = els.studyBody.querySelector(".browse-list");
+    const clear = els.studyBody.querySelector(".study-search .clear-btn");
+    if (list) list.innerHTML = studyRowsHtml(studyRowsFiltered());
+    if (clear) clear.classList.toggle("hidden", !study.searchQuery);
   }, 150);
+}
+
+function studyRowsFiltered() {
+  if (!study.searchQuery) return study.words;
+  const q = study.searchQuery.toLowerCase();
+  return study.words.filter((w) =>
+    w.word.toLowerCase().includes(q) ||
+    (w.gloss || "").toLowerCase().includes(q) ||
+    (w.defs || []).some((d) => d.text.toLowerCase().includes(q))
+  );
 }
 
 async function resetStudyCategory(btn) {
